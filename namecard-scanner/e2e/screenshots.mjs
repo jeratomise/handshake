@@ -16,7 +16,7 @@ await mkdir(outDir, { recursive: true });
 
 const executablePath = findChromium();
 const browser = await chromium.launch(executablePath ? { executablePath } : {});
-const page = await browser.newPage({ ...devices['Pixel 7'] });
+const page = await browser.newPage({ ...devices['Pixel 7'], deviceScaleFactor: 1 });
 
 const shot = async (name) => {
   await page.waitForTimeout(700); // let the staged entrance animations settle
