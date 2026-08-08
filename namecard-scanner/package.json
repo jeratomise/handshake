@@ -1,0 +1,35 @@
+{
+  "name": "handshake-namecard-scanner",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mobile-first web app that scans a business card and hands off a reviewed intro message to WhatsApp.",
+  "scripts": {
+    "postinstall": "node scripts/sync-ocr-assets.mjs",
+    "sync-ocr": "node scripts/sync-ocr-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/sync-ocr-assets.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource-variable/space-grotesk": "^5.2.8",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4"
+  }
+}

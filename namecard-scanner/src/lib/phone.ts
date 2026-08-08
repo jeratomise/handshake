@@ -1,0 +1,249 @@
+import { COUNTRIES_BY_DIAL_LENGTH, countryByIso, type Country } from './countries';
+
+export type PhoneKind = 'mobile' | 'office' | 'fax' | 'unknown';
+
+export interface PhoneCandidate {
+  raw: string;
+  kind: PhoneKind;
+}
+
+export interface NormalizedPhone {
+  ok: boolean;
+  /** '+6591234567' — what we show the user. */
+  e164: string | null;
+  /** '6591234567' — what wa.me wants (digits only, no plus). */
+  waDigits: string | null;
+  national: string | null;
+  countryIso: string | null;
+  /** Set when we had to guess; surfaced in the UI so the user can correct it. */
+  warning?: string;
+  problem?: string;
+}
+
+const MIN_E164_DIGITS = 7;
+const MAX_E164_DIGITS = 15;
+
+function digitsOf(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function startsWithAny(value: string, prefixes: readonly string[] | undefined): boolean {
+  if (!prefixes || prefixes.length === 0) return false;
+  return prefixes.some((p) => value.startsWith(p));
+}
+
+function fail(problem: string): NormalizedPhone {
+  return { ok: false, e164: null, waDigits: null, national: null, countryIso: null, problem };
+}
+
+function succeed(dial: string, national: string, iso: string | null, warning?: string): NormalizedPhone {
+  const full = dial + national;
+  if (full.length < MIN_E164_DIGITS || full.length > MAX_E164_DIGITS) {
+    return fail(`"+${full}" is ${full.length} digits — that is not a valid phone number.`);
+  }
+  return {
+    ok: true,
+    e164: `+${full}`,
+    waDigits: full,
+    national,
+    countryIso: iso,
+    ...(warning ? { warning } : {}),
+  };
+}
+
+/** Splits an already-international digit string into country code + rest. */
+function splitInternational(digits: string): { country: Country | null; national: string } {
+  for (const country of COUNTRIES_BY_DIAL_LENGTH) {
+    if (!digits.startsWith(country.dial)) continue;
+    const national = digits.slice(country.dial.length);
+    // Only accept the match if what remains could plausibly be a real number
+    // for that country; otherwise keep looking at shorter dial codes.
+    if (country.nsn.includes(national.length)) return { country, national };
+  }
+  // No confident match: fall back to the first prefix match so we still produce
+  // a usable +E.164 rather than refusing a number the user can see is fine.
+  for (const country of COUNTRIES_BY_DIAL_LENGTH) {
+    if (digits.startsWith(country.dial)) {
+      return { country, national: digits.slice(country.dial.length) };
+    }
+  }
+  return { country: null, national: digits };
+}
+
+/**
+ * Turns whatever was printed on the card into a WhatsApp-dialable number.
+ *
+ * Business cards write numbers a dozen ways ('+65 9123 4567', '(02) 9876 5432',
+ * '012-345 6789', '65 9123 4567'), and WhatsApp silently opens an empty chat if
+ * the country code is wrong. Everything here exists to get that one thing right,
+ * and anything we had to infer comes back as a `warning` for the user to confirm.
+ */
+export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return fail('No phone number.');
+
+  const home = countryByIso(defaultIso);
+  const isPlus = trimmed.startsWith('+');
+  const bare = digitsOf(trimmed);
+  if (!bare) return fail(`"${trimmed}" contains no digits.`);
+
+  // --- Explicitly international: '+65…' or the '00' international prefix. ---
+  if (isPlus || bare.startsWith('00')) {
+    const digits = isPlus ? bare : bare.slice(2);
+    if (digits.length < MIN_E164_DIGITS) return fail(`"${trimmed}" is too short to be a phone number.`);
+    const { country, national } = splitInternational(digits);
+    if (!country) {
+      // Unknown country code, but the shape is valid — pass it through.
+      return succeed('', digits, null, 'Unrecognised country code — double-check this one.');
+    }
+    return succeed(country.dial, national, country.iso);
+  }
+
+  // --- Written in local format: apply the home market's rules. ---
+  const trunk = home.trunk;
+  const afterTrunk = trunk && bare.startsWith(trunk) ? bare.slice(trunk.length) : null;
+
+  // 1. Trunk prefix is unambiguous — an international number never carries one.
+  if (afterTrunk !== null && home.nsn.includes(afterTrunk.length)) {
+    return succeed(home.dial, afterTrunk, home.iso);
+  }
+
+  const dialStripped = bare.startsWith(home.dial) ? bare.slice(home.dial.length) : null;
+  const dialStrippedValid = dialStripped !== null && home.nsn.includes(dialStripped.length);
+  const bareValid = home.nsn.includes(bare.length);
+
+  // 2. Both readings are length-valid (e.g. Indonesian '62812345678'). Break the
+  //    tie with mobile prefixes: '62…' is not a mobile prefix, '812…' is.
+  if (bareValid && dialStrippedValid) {
+    const preferDialStripped =
+      !startsWithAny(bare, home.mobilePrefixes) && startsWithAny(dialStripped, home.mobilePrefixes);
+    return preferDialStripped
+      ? succeed(home.dial, dialStripped, home.iso, `Read as +${home.dial} ${dialStripped} — confirm this is right.`)
+      : succeed(home.dial, bare, home.iso);
+  }
+
+  if (bareValid) return succeed(home.dial, bare, home.iso);
+  if (dialStrippedValid) return succeed(home.dial, dialStripped, home.iso);
+
+  // 3. Nothing matched the home market exactly. It may be a foreign number
+  //    printed without a '+', which is common on regional cards.
+  const foreign = splitInternational(bare);
+  if (foreign.country && foreign.country.nsn.includes(foreign.national.length) && bare.length > (home.nsn[0] ?? 0)) {
+    return succeed(
+      foreign.country.dial,
+      foreign.national,
+      foreign.country.iso,
+      `Read as a ${foreign.country.name} number — confirm the country code.`,
+    );
+  }
+
+  // 4. Last resort: assume the home country and let the user eyeball it.
+  if (bare.length >= MIN_E164_DIGITS && bare.length + home.dial.length <= MAX_E164_DIGITS) {
+    const withoutTrunk = afterTrunk !== null ? afterTrunk : bare;
+    return succeed(
+      home.dial,
+      withoutTrunk,
+      home.iso,
+      `Unusual length for ${home.name} — check the country code before sending.`,
+    );
+  }
+
+  if (bare.length >= MIN_E164_DIGITS && bare.length <= MAX_E164_DIGITS) {
+    return succeed('', bare, null, 'Could not work out the country code — check it before sending.');
+  }
+
+  return fail(`"${trimmed}" does not look like a phone number.`);
+}
+
+/** Digit groupings that read naturally at each national-number length. */
+const DISPLAY_GROUPS: Record<number, number[]> = {
+  7: [3, 4],
+  8: [4, 4],
+  9: [3, 3, 3],
+  10: [3, 3, 4],
+  11: [3, 4, 4],
+  12: [4, 4, 4],
+};
+
+function groupDigits(national: string): string {
+  const groups = DISPLAY_GROUPS[national.length];
+  if (groups) {
+    const out: string[] = [];
+    let cursor = 0;
+    for (const size of groups) {
+      out.push(national.slice(cursor, cursor + size));
+      cursor += size;
+    }
+    if (cursor < national.length) out.push(national.slice(cursor));
+    return out.filter(Boolean).join(' ');
+  }
+  // Unknown length: chunk by four, folding a lonely trailing digit back in.
+  const chunks = national.match(/.{1,4}/g) ?? [national];
+  if (chunks.length > 1 && chunks[chunks.length - 1]!.length === 1) {
+    const tail = chunks.pop()!;
+    chunks[chunks.length - 1] += tail;
+  }
+  return chunks.join(' ');
+}
+
+/** Groups the E.164 digits for display: +65 9123 4567. */
+export function formatE164(e164: string | null): string {
+  if (!e164) return '';
+  const digits = e164.replace(/\D/g, '');
+  const { country, national } = splitInternational(digits);
+  if (!country) return `+${digits}`;
+  return `+${country.dial} ${groupDigits(national)}`;
+}
+
+// Two shapes per label: a whole word ('Mobile', 'Fax'), or the single-letter
+// abbreviation that only counts when followed by a colon or dot ('M:', 'F.').
+// The abbreviation form deliberately sits outside \b — there is no word
+// boundary between ':' and the space that follows it.
+const FAX_HINT = /\b(?:fax|telefax)\b|(?:^|\s)f\s*[:.]/i;
+const MOBILE_HINT = /\b(?:mobile|mob|hp|h\/p|handphone|cell|cellular|whatsapp|gsm)\b|(?:^|\s)m\s*[:.]/i;
+const OFFICE_HINT = /\b(?:tel|telephone|office|off|direct|dd|did|phone|ph)\b|(?:^|\s)[ot]\s*[:.]/i;
+
+/** Classifies a phone by the label printed next to it on the card. */
+export function classifyPhoneLine(line: string): PhoneKind {
+  if (FAX_HINT.test(line)) return 'fax';
+  if (MOBILE_HINT.test(line)) return 'mobile';
+  if (OFFICE_HINT.test(line)) return 'office';
+  return 'unknown';
+}
+
+const KIND_RANK: Record<PhoneKind, number> = { mobile: 0, unknown: 1, office: 2, fax: 99 };
+
+/**
+ * Picks the number most likely to be on WhatsApp. Mobile beats office, and a
+ * fax number is never chosen — sending an intro to a fax line is the kind of
+ * thing that gets an app deleted.
+ */
+export function pickBestPhone(candidates: readonly PhoneCandidate[], defaultIso: string): PhoneCandidate | null {
+  const usable = candidates.filter((c) => c.kind !== 'fax' && normalizePhone(c.raw, defaultIso).ok);
+  if (usable.length === 0) return null;
+
+  const home = countryByIso(defaultIso);
+  const scored = usable.map((candidate, index) => {
+    const normalized = normalizePhone(candidate.raw, defaultIso);
+    let rank = KIND_RANK[candidate.kind];
+    // An unlabelled number that starts with a mobile prefix is almost certainly
+    // a mobile, so treat it as well as an explicitly labelled one.
+    if (
+      candidate.kind === 'unknown' &&
+      normalized.countryIso === home.iso &&
+      startsWithAny(normalized.national ?? '', home.mobilePrefixes)
+    ) {
+      rank = KIND_RANK.mobile + 0.5;
+    }
+    return { candidate, rank, index };
+  });
+
+  scored.sort((a, b) => a.rank - b.rank || a.index - b.index);
+  return scored[0]!.candidate;
+}
+
+/** Builds the WhatsApp deep link. wa.me wants digits only — no '+', no spaces. */
+export function whatsappUrl(e164: string, message: string): string {
+  const digits = e164.replace(/\D/g, '');
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}

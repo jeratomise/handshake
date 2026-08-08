@@ -1,0 +1,15 @@
+node_modules/
+dist/
+
+# Vendored at install time by scripts/sync-ocr-assets.mjs — ~30 MB of engine
+# builds and language data that would otherwise bloat every clone.
+public/tesseract/
+public/tessdata/
+test-results/
+playwright-report/
+*.local
+.DS_Store
+
+# Regenerated on demand by e2e/screenshots.mjs
+docs/screens/
+tsconfig.tsbuildinfo
