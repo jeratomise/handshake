@@ -3,6 +3,30 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 const url = (import.meta.env.VITE_SUPABASE_URL ?? '').trim();
 const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 
+export interface RuntimeEnv {
+  VITE_SUPABASE_URL?: string;
+  VITE_SUPABASE_ANON_KEY?: string;
+  VITE_REQUIRE_EMAIL_VERIFICATION?: string;
+}
+
+/**
+ * Whether the app puts email verification in front of the scanner.
+ *
+ * Set `VITE_REQUIRE_EMAIL_VERIFICATION=false` to walk straight into the
+ * scanner — useful for demoing the flow, and for working on it before email
+ * delivery is configured. Exported as a pure function so the parsing is
+ * covered by tests rather than only discovered at deploy time.
+ *
+ * Only an explicit "false" disables it: a typo, an empty value or an unset
+ * variable all leave verification ON, because the failure that matters is
+ * accidentally shipping an open app, not accidentally shipping a closed one.
+ */
+export function authRequired(env: RuntimeEnv): boolean {
+  const configured = Boolean((env.VITE_SUPABASE_URL ?? '').trim() && (env.VITE_SUPABASE_ANON_KEY ?? '').trim());
+  if (!configured) return false;
+  return (env.VITE_REQUIRE_EMAIL_VERIFICATION ?? '').trim().toLowerCase() !== 'false';
+}
+
 /**
  * Whether this build talks to Supabase at all.
  *
@@ -12,6 +36,9 @@ const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
  * offline tool rather than a white screen.
  */
 export const cloudEnabled = Boolean(url && anonKey);
+
+/** False when VITE_REQUIRE_EMAIL_VERIFICATION=false: the gate steps aside. */
+export const emailVerificationRequired = authRequired(import.meta.env);
 
 let cached: SupabaseClient | null = null;
 

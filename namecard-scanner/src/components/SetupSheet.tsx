@@ -11,6 +11,8 @@ interface Props {
   /** Set when a Supabase read or write failed; the app keeps working regardless. */
   syncError: string | null;
   canSignOut: boolean;
+  /** True when Supabase is configured but the gate was switched off by env. */
+  verificationDisabled: boolean;
   onSave: (profile: SenderProfile) => void;
   onClose: () => void;
   onSignOut: () => void;
@@ -22,6 +24,7 @@ export default function SetupSheet({
   email,
   syncError,
   canSignOut,
+  verificationDisabled,
   onSave,
   onClose,
   onSignOut,
@@ -43,6 +46,17 @@ export default function SetupSheet({
             ? 'This is how you introduce yourself in every draft. Synced to your account so it follows you between devices.'
             : 'This is how you introduce yourself in every draft. Stored on this device only — nothing is uploaded.'}
         </p>
+
+        {verificationDisabled ? (
+          <div className="notice" role="status" data-testid="verification-off">
+            <AlertIcon />
+            <span>
+              Email verification is switched off for this deployment, so anyone with the link can use it and nothing
+              syncs between devices. Remove <code>VITE_REQUIRE_EMAIL_VERIFICATION=false</code> in Vercel to turn it
+              back on.
+            </span>
+          </div>
+        ) : null}
 
         {syncError ? (
           <div className="notice" role="status" data-testid="sync-error">

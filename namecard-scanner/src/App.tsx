@@ -16,7 +16,7 @@ import { prepareImage } from './lib/preprocess';
 import { appendLog, clearLocalData, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
 import type { Session } from '@supabase/supabase-js';
 import AuthGate from './components/AuthGate';
-import { cloudEnabled, supabase } from './lib/supabase';
+import { cloudEnabled, emailVerificationRequired, supabase } from './lib/supabase';
 import { fetchLog, fetchProfile, recordFollowUp, saveProfile as saveProfileRemote } from './lib/backend';
 
 type Step = 'scan' | 'reading' | 'confirm' | 'context' | 'review' | 'sent';
@@ -316,6 +316,7 @@ function Handshake({ session }: { session: Session | null }) {
           email={session?.user.email ?? ''}
           syncError={syncError}
           canSignOut={cloudEnabled && Boolean(session)}
+          verificationDisabled={cloudEnabled && !emailVerificationRequired}
           onSave={persistProfile}
           onClose={() => setShowSetup(false)}
           onSignOut={signOut}

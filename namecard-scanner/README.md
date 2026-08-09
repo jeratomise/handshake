@@ -57,25 +57,60 @@ supabase advisors       ->  0 findings
 
 Apply the schema to a different project with `supabase/migrations/*.sql`, in order.
 
-### Two dashboard steps the API cannot do
+### The one dashboard step the API cannot do
 
-Supabase exposes no management API for auth settings, so these are manual — and
-sign-in will not work end to end until they are done:
+Supabase exposes no management API for auth settings, so this is manual:
 
-1. **Authentication → Email Templates → Magic Link.** Add `{{ .Token }}` to the
-   template. The stock template only contains a link, so without this the
-   six-digit code never reaches the user. The app accepts either the code or the
-   link, so adding the token makes both paths work.
-2. **Authentication → URL Configuration.** Set Site URL and add a Redirect URL
-   for the deployed domain, so tapping the link in the email returns to the app
-   rather than to localhost.
+**Authentication → URL Configuration.** Set Site URL and add a Redirect URL for
+the deployed domain, so tapping the link in the email returns to the app rather
+than to localhost.
 
-### Email sending
+(Editing the Magic Link template to add `{{ .Token }}` is *not* needed once the
+Resend hook below is enabled — the hook owns the email and reads the token
+straight off the payload.)
 
-Supabase's built-in SMTP is rate limited (a handful of messages per hour) and
-intended for development. Before real BDEs use this, set a custom SMTP provider
-under **Authentication → Emails** — otherwise the second and third person to sign
-up will silently not receive anything.
+### Email sending (Resend)
+
+Supabase's built-in mailer is rate limited to a handful of messages an hour and
+is not intended for production, which is why the second and third person to sign
+up appear to receive nothing.
+
+`supabase/functions/send-auth-email/` replaces it. It is a Supabase **Send Email
+hook**: Supabase stops sending mail itself and calls the function, which
+delivers through Resend. Two things that buys beyond deliverability — the
+six-digit code arrives without editing any Supabase template (the stock Magic
+Link template contains only `{{ .ConfirmationURL }}`, so an OTP flow otherwise
+sends nobody a code), and the email is ours to design.
+
+The function is deployed and **rejects unsigned requests** — it is a public
+endpoint, and without signature verification it would be an open mail relay.
+
+To switch it on:
+
+1. **Resend** — verify your sending domain, then create an API key.
+2. **Supabase → Edge Functions → Secrets** — add:
+   | Secret | Value |
+   | --- | --- |
+   | `RESEND_API_KEY` | from resend.com/api-keys |
+   | `EMAIL_FROM` | `Handshake <hello@yourdomain.com>`, on the verified domain |
+   | `SEND_EMAIL_HOOK_SECRET` | the secret shown in step 3, starting `v1,whsec_` |
+3. **Supabase → Authentication → Hooks → Send Email Hook** — enable it, point it
+   at `https://<project>.supabase.co/functions/v1/send-auth-email`, and copy the
+   generated secret into step 2.
+
+Redeploy the function after changing secrets.
+
+### Skipping verification
+
+`VITE_REQUIRE_EMAIL_VERIFICATION=false` (a Vercel environment variable) walks
+straight into the scanner with no sign-in. Useful for demos and for working on
+the flow before email delivery is configured.
+
+Only an explicit `false` disables it — a typo, an empty value or an unset
+variable all leave verification on, because the mistake worth guarding against
+is accidentally shipping an open app. With verification off there is no
+signed-in user, so nothing syncs: profile and history stay on the device, and
+the settings screen says so.
 
 ## Deploying (Vercel)
 
@@ -114,7 +149,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 76 unit tests — parsing, phone normalisation, drafting
+npm test               # 80 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 18 browser tests against the real production build
 ```
@@ -137,6 +172,8 @@ node e2e/make-fixture.mjs
 | `src/lib/phone.ts` | Phone normalisation to E.164 and the `wa.me` link |
 | `src/lib/draft.ts` | Tone/CTA-aware message composition, vCard export |
 | `src/lib/storage.ts` | Sender profile and daily tally in `localStorage` |
+| `src/lib/supabase.ts` | Client, and the flags that decide whether auth applies |
+| `supabase/functions/` | Send Email auth hook, delivering via Resend |
 | `src/components/` | One component per step of the flow |
 
 ### Three decisions worth knowing about

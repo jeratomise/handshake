@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { cloudEnabled, supabase } from '../lib/supabase';
+import { emailVerificationRequired, supabase } from '../lib/supabase';
 import { AlertIcon, CardIcon } from './Icons';
 
 type Phase = 'checking' | 'email' | 'code' | 'ready';
@@ -21,11 +21,12 @@ const RESEND_SECONDS = 45;
  * easier than following a link out of a mail client — which, on a phone at a
  * trade show, it usually is.
  *
- * With no Supabase credentials configured the gate steps aside entirely and
- * the app runs local-only.
+ * The gate steps aside entirely when Supabase is not configured, or when
+ * VITE_REQUIRE_EMAIL_VERIFICATION=false — in both cases the app runs
+ * local-only, storing the profile and history on the device.
  */
 export default function AuthGate({ children }: Props) {
-  const [phase, setPhase] = useState<Phase>(cloudEnabled ? 'checking' : 'ready');
+  const [phase, setPhase] = useState<Phase>(emailVerificationRequired ? 'checking' : 'ready');
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -36,7 +37,7 @@ export default function AuthGate({ children }: Props) {
   const codeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!cloudEnabled) return;
+    if (!emailVerificationRequired) return;
     const client = supabase();
     if (!client) return;
 
