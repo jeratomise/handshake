@@ -13,3 +13,7 @@ playwright-report/
 # Regenerated on demand by e2e/screenshots.mjs
 docs/screens/
 tsconfig.tsbuildinfo
+
+# Local secrets
+.env.local
+.env*.local

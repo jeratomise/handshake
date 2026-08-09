@@ -28,6 +28,79 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
+With no Supabase credentials configured the app runs **local-only**: no sign-in,
+profile and history in `localStorage`. Everything except cross-device sync works
+that way, so a fresh clone is usable immediately.
+
+## Backend (Supabase)
+
+Live project: `handshake` — `https://oltrwsrzhmhmofwvyeju.supabase.co` (ap-southeast-1).
+
+Two tables, both with row level security so a BDE can only ever reach their own
+rows. This matters more than usual here: `follow_ups` holds contact details
+belonging to *third parties* — the people whose cards were scanned — and that is
+not data an anon key should be able to enumerate.
+
+| Table | Holds |
+| --- | --- |
+| `profiles` | The sender: name, company, home market, default tone |
+| `follow_ups` | One row per card handed to WhatsApp, plus the message sent |
+
+Verified against the live project:
+
+```
+anon SELECT follow_ups  ->  []                          (no leak)
+anon INSERT follow_ups  ->  401, RLS policy violation   (no writes)
+rpc/handle_new_user     ->  404                         (trigger fns not exposed)
+supabase advisors       ->  0 findings
+```
+
+Apply the schema to a different project with `supabase/migrations/*.sql`, in order.
+
+### Two dashboard steps the API cannot do
+
+Supabase exposes no management API for auth settings, so these are manual — and
+sign-in will not work end to end until they are done:
+
+1. **Authentication → Email Templates → Magic Link.** Add `{{ .Token }}` to the
+   template. The stock template only contains a link, so without this the
+   six-digit code never reaches the user. The app accepts either the code or the
+   link, so adding the token makes both paths work.
+2. **Authentication → URL Configuration.** Set Site URL and add a Redirect URL
+   for the deployed domain, so tapping the link in the email returns to the app
+   rather than to localhost.
+
+### Email sending
+
+Supabase's built-in SMTP is rate limited (a handful of messages per hour) and
+intended for development. Before real BDEs use this, set a custom SMTP provider
+under **Authentication → Emails** — otherwise the second and third person to sign
+up will silently not receive anything.
+
+## Deploying (Vercel)
+
+`vercel.json` is committed and the build is verified from a clean tree. From
+`namecard-scanner/`:
+
+```bash
+npx vercel --prod
+```
+
+Set these in the Vercel project (or leave `.env.production`, which is committed
+and carries the same values):
+
+| Variable | Value |
+| --- | --- |
+| `VITE_SUPABASE_URL` | `https://oltrwsrzhmhmofwvyeju.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | the project's publishable key |
+
+Both are public by design and ship in the client bundle — row level security is
+what protects the data, not the secrecy of the key. The `service_role` key must
+never appear in this repo.
+
+The build downloads the OCR language model, so the build container needs network
+access (Vercel's does).
+
 The camera viewfinder needs a secure context. `localhost` counts as one; to test
 from a phone on your LAN, serve the preview build over HTTPS or use a tunnel.
 Without camera access the app falls back to the native photo picker, which works
@@ -41,9 +114,9 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 70 unit tests — parsing, phone normalisation, drafting
+npm test               # 76 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 8 browser tests against the real production build
+npm run e2e            # 18 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it

@@ -77,3 +77,18 @@ export function countToday(log: readonly LogEntry[]): number {
   startOfDay.setHours(0, 0, 0, 0);
   return log.filter((entry) => entry.sentAt >= startOfDay.getTime()).length;
 }
+
+/**
+ * Wipes the on-device cache.
+ *
+ * Called on sign-out: this device may be handed to a colleague, and the cache
+ * holds third-party contact details from every card that was scanned.
+ */
+export function clearLocalData(): void {
+  try {
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(LOG_KEY);
+  } catch {
+    /* Nothing to clear if storage is unavailable. */
+  }
+}

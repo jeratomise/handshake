@@ -26,7 +26,14 @@ export default defineConfig({
     ...(executablePath ? { launchOptions: { executablePath } } : {}),
   },
   webServer: {
+    // Built WITH Supabase credentials so the suite runs against the same shape
+    // as production — auth gate included. e2e/supabase-mock.ts intercepts the
+    // project's HTTP surface, so no live project is contacted.
     command: 'npm run build && npm run preview -- --port 4173 --host 127.0.0.1',
+    env: {
+      VITE_SUPABASE_URL: 'https://stub-project.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'stub-anon-key',
+    },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 180_000,

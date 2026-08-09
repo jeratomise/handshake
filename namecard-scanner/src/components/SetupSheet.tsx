@@ -1,15 +1,31 @@
 import { useState } from 'react';
 import { COUNTRIES } from '../lib/countries';
 import { TONES, type SenderProfile } from '../lib/draft';
+import { supabaseHost } from '../lib/supabase';
+import { AlertIcon } from './Icons';
 
 interface Props {
   profile: SenderProfile;
   firstRun: boolean;
+  email: string;
+  /** Set when a Supabase read or write failed; the app keeps working regardless. */
+  syncError: string | null;
+  canSignOut: boolean;
   onSave: (profile: SenderProfile) => void;
   onClose: () => void;
+  onSignOut: () => void;
 }
 
-export default function SetupSheet({ profile, firstRun, onSave, onClose }: Props) {
+export default function SetupSheet({
+  profile,
+  firstRun,
+  email,
+  syncError,
+  canSignOut,
+  onSave,
+  onClose,
+  onSignOut,
+}: Props) {
   const [draft, setDraft] = useState<SenderProfile>(profile);
   const canSave = draft.name.trim().length > 0;
 
@@ -23,8 +39,19 @@ export default function SetupSheet({ profile, firstRun, onSave, onClose }: Props
           Who is the message <em>from</em>?
         </h1>
         <p className="lede">
-          This is how you introduce yourself in every draft. Stored on this device only — nothing is uploaded.
+          {supabaseHost
+            ? 'This is how you introduce yourself in every draft. Synced to your account so it follows you between devices.'
+            : 'This is how you introduce yourself in every draft. Stored on this device only — nothing is uploaded.'}
         </p>
+
+        {syncError ? (
+          <div className="notice" role="status" data-testid="sync-error">
+            <AlertIcon />
+            <span>
+              Working offline — {syncError} Your cards are saved on this device and will not be lost.
+            </span>
+          </div>
+        ) : null}
 
         <label className="field">
           <span className="field-label">Your name</span>
@@ -84,6 +111,24 @@ export default function SetupSheet({ profile, firstRun, onSave, onClose }: Props
             ))}
           </div>
         </label>
+
+        {canSignOut ? (
+          <>
+            <label className="field">
+              <span className="field-label">Signed in as</span>
+              <p className="field-note" style={{ fontSize: 14.5, marginTop: 0 }} data-testid="signed-in-as">
+                {email || 'your account'}
+                {supabaseHost ? ` · ${supabaseHost}` : ''}
+              </p>
+            </label>
+            <button type="button" className="btn btn-ghost btn-block" onClick={onSignOut} data-testid="sign-out">
+              Sign out on this device
+            </button>
+            <p className="field-note" style={{ marginTop: 10 }}>
+              Signing out clears the cards cached on this phone. They stay in your account.
+            </p>
+          </>
+        ) : null}
       </div>
 
       <div className="bar">

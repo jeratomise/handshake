@@ -9,7 +9,7 @@
     "sync-ocr": "node scripts/sync-ocr-assets.mjs",
     "dev": "vite",
     "prebuild": "node scripts/sync-ocr-assets.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
@@ -18,9 +18,11 @@
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.8",
+    "@supabase/supabase-js": "^2.112.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "tesseract.js-core": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

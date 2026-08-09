@@ -13,7 +13,11 @@ import { readCardText } from './lib/ocr';
 import { EMPTY_CARD, greetingName, parseCard } from './lib/parseCard';
 import { normalizePhone, pickBestPhone, whatsappUrl } from './lib/phone';
 import { prepareImage } from './lib/preprocess';
-import { appendLog, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
+import { appendLog, clearLocalData, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
+import type { Session } from '@supabase/supabase-js';
+import AuthGate from './components/AuthGate';
+import { cloudEnabled, supabase } from './lib/supabase';
+import { fetchLog, fetchProfile, recordFollowUp, saveProfile as saveProfileRemote } from './lib/backend';
 
 type Step = 'scan' | 'reading' | 'confirm' | 'context' | 'review' | 'sent';
 
@@ -21,8 +25,11 @@ const RAIL_INDEX: Record<Step, number> = { scan: 0, reading: 0, confirm: 1, cont
 
 const BLANK_FORM: ContactForm = { name: '', greeting: '', title: '', company: '', email: '', phone: '' };
 
-export default function App() {
+function Handshake({ session }: { session: Session | null }) {
+  const userId = session?.user.id ?? null;
   const [profile, setProfile] = useState<SenderProfile>(loadProfile);
+  /** Non-fatal: the app keeps working from localStorage when a sync fails. */
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(() => !profileIsComplete(loadProfile()));
   const [log, setLog] = useState<LogEntry[]>(loadLog);
 
@@ -55,6 +62,41 @@ export default function App() {
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
+
+  // On sign-in, pull what the server has. A profile saved on the laptop should
+  // be waiting on the phone; if there is nothing up there yet, push what this
+  // device already has so the first sync is not a data loss.
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+
+    void (async () => {
+      const local = loadProfile();
+      const [remoteProfile, remoteLog] = await Promise.all([fetchProfile(userId, local), fetchLog()]);
+      if (!active) return;
+
+      if (remoteProfile.error) setSyncError(remoteProfile.error);
+
+      if (remoteProfile.data && profileIsComplete(remoteProfile.data)) {
+        setProfile(remoteProfile.data);
+        saveProfile(remoteProfile.data);
+        setCountryIso(remoteProfile.data.defaultCountry);
+        setTone(remoteProfile.data.defaultTone);
+        setCta(remoteProfile.data.defaultCta);
+        setShowSetup(false);
+      } else if (profileIsComplete(local)) {
+        void saveProfileRemote(userId, local);
+      }
+
+      if (remoteLog.data) {
+        setLog(remoteLog.data);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const phone = useMemo(() => normalizePhone(form.phone, countryIso), [form.phone, countryIso]);
 
@@ -159,11 +201,29 @@ export default function App() {
     setLog(appendLog(entry));
     setStep('sent');
 
+    // Fire-and-forget: the follow-up is already saved locally, so a failed
+    // write costs the user nothing except cross-device sync for this one card.
+    if (userId) {
+      void recordFollowUp(userId, {
+        contactName: form.name.trim(),
+        greeting: form.greeting.trim(),
+        title: form.title.trim(),
+        company: form.company.trim(),
+        email: form.email.trim(),
+        phoneE164: phone.e164,
+        context,
+        tone,
+        message,
+      }).then(({ error: writeError }) => {
+        if (writeError) setSyncError(writeError);
+      });
+    }
+
     // A new tab keeps this session alive so the user can come straight back for
     // the next card. If the browser blocks it, navigate in place instead.
     const opened = window.open(url, '_blank', 'noopener,noreferrer');
     if (!opened) window.location.href = url;
-  }, [context, form.company, form.name, message, phone.e164]);
+  }, [context, form.company, form.email, form.greeting, form.name, form.title, message, phone.e164, tone, userId]);
 
   const reopenWhatsApp = useCallback(() => {
     const url = lastUrlRef.current;
@@ -192,20 +252,37 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(url), 5_000);
   }, [form.company, form.email, form.greeting, form.name, form.title, phone.e164]);
 
-  const persistProfile = useCallback((next: SenderProfile) => {
-    setProfile(next);
-    saveProfile(next);
-    setCountryIso(next.defaultCountry);
-    setTone(next.defaultTone);
-    setCta(next.defaultCta);
-    setShowSetup(false);
+  const persistProfile = useCallback(
+    (next: SenderProfile) => {
+      setProfile(next);
+      saveProfile(next);
+      setCountryIso(next.defaultCountry);
+      setTone(next.defaultTone);
+      setCta(next.defaultCta);
+      setShowSetup(false);
+      if (userId) {
+        void saveProfileRemote(userId, next).then(({ error: saveError }) => {
+          if (saveError) setSyncError(saveError);
+        });
+      }
+    },
+    [userId],
+  );
+
+  const signOut = useCallback(async () => {
+    const client = supabase();
+    // Clear the local cache too: the next person to sign in on this device
+    // must not inherit the previous user's profile or contact history.
+    clearLocalData();
+    if (client) await client.auth.signOut();
+    window.location.reload();
   }, []);
 
   const railAt = RAIL_INDEX[step];
   const today = countToday(log);
 
   return (
-    <div className="app">
+    <>
       <header className="topbar">
         <div className="wordmark">
           <span className="dot" aria-hidden="true" />
@@ -236,8 +313,12 @@ export default function App() {
         <SetupSheet
           profile={profile}
           firstRun={!profileIsComplete(profile)}
+          email={session?.user.email ?? ''}
+          syncError={syncError}
+          canSignOut={cloudEnabled && Boolean(session)}
           onSave={persistProfile}
           onClose={() => setShowSetup(false)}
+          onSignOut={signOut}
         />
       ) : step === 'scan' ? (
         <ScanScreen onCapture={handleCapture} error={error} />
@@ -299,6 +380,14 @@ export default function App() {
           onNext={resetCard}
         />
       )}
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <div className="app">
+      <AuthGate>{(session) => <Handshake session={session} />}</AuthGate>
     </div>
   );
 }

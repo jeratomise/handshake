@@ -49,7 +49,16 @@ async function exists(path) {
 async function copyCore() {
   await mkdir(CORE_DEST, { recursive: true });
   const entries = await readdir(CORE_SRC);
-  const wanted = entries.filter((name) => name.startsWith('tesseract-core') && !name.endsWith('.map'));
+  // The worker is created with OEM 1 (LSTM_ONLY), so only the '-lstm' builds
+  // are ever requested — but all three of those are, because the browser
+  // chooses between plain, SIMD and relaxed-SIMD at runtime. Shipping the
+  // legacy cores as well would add ~27 MB to every deploy for nothing.
+  const wanted = entries.filter(
+    (name) => name.startsWith('tesseract-core') && name.includes('-lstm') && !name.endsWith('.map'),
+  );
+  if (wanted.length === 0) {
+    throw new Error('No LSTM core builds found in tesseract.js-core — the package layout may have changed.');
+  }
   await Promise.all(wanted.map((name) => copyFile(join(CORE_SRC, name), join(CORE_DEST, name))));
   await copyFile(WORKER_SRC, join(CORE_DEST, 'worker.min.js'));
   return wanted.length + 1;

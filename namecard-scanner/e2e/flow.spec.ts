@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { mockSupabase, signIn } from './supabase-mock';
 
 const CARD_FIXTURE = fileURLToPath(new URL('./fixtures/card.png', import.meta.url));
 
@@ -36,10 +37,17 @@ async function scanFixture(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await stubWindowOpen(page);
+  await mockSupabase(page);
 });
 
-test('first run asks who the message is from before anything else', async ({ page }) => {
+/** Every screen below sits behind email verification, so start there. */
+async function reachApp(page: Page) {
   await page.goto('/');
+  await signIn(page);
+}
+
+test('first run asks who the message is from before anything else', async ({ page }) => {
+  await reachApp(page);
   await expect(page.getByRole('heading', { name: /who is the message from/i })).toBeVisible();
   // Cannot proceed without a name — the draft would have nobody to introduce.
   await expect(page.getByTestId('profile-save')).toBeDisabled();
@@ -48,7 +56,7 @@ test('first run asks who the message is from before anything else', async ({ pag
 });
 
 test('reads a real card, then hands a reviewed message to WhatsApp', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
 
   await expect(page.getByRole('heading', { name: /point at the card/i })).toBeVisible();
@@ -104,7 +112,7 @@ test('reads a real card, then hands a reviewed message to WhatsApp', async ({ pa
 });
 
 test('the meeting question is optional and the draft still reads properly', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await scanFixture(page);
   await page.getByTestId('to-context').click();
@@ -120,7 +128,7 @@ test('the meeting question is optional and the draft still reads properly', asyn
 });
 
 test('an edited draft is what gets sent', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await scanFixture(page);
   await page.getByTestId('to-context').click();
@@ -139,7 +147,7 @@ test('an edited draft is what gets sent', async ({ page }) => {
 });
 
 test('changing the tone rewrites the draft, and reset restores it', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await scanFixture(page);
   await page.getByTestId('to-context').click();
@@ -158,7 +166,7 @@ test('changing the tone rewrites the draft, and reset restores it', async ({ pag
 });
 
 test('a card with no usable number cannot reach WhatsApp', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await scanFixture(page);
 
@@ -175,7 +183,7 @@ test('a card with no usable number cannot reach WhatsApp', async ({ page }) => {
 });
 
 test('switching country re-resolves a local number', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await scanFixture(page);
 
@@ -192,7 +200,7 @@ test('switching country re-resolves a local number', async ({ page }) => {
 });
 
 test('the profile persists across a reload, so setup is a one-time cost', async ({ page }) => {
-  await page.goto('/');
+  await reachApp(page);
   await completeSetup(page);
   await expect(page.getByRole('heading', { name: /point at the card/i })).toBeVisible();
 

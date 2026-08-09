@@ -1,0 +1,10 @@
+{
+  // Production build: application sources only.
+  //
+  // The root tsconfig also covers tests, e2e specs and tool configs, which pull
+  // in devDependencies and Playwright. A deployment build must not depend on
+  // any of that, so the shipped type check is scoped to what actually ships.
+  "extends": "./tsconfig.json",
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}
