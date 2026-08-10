@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { cloudEnabled, emailVerificationRequired, supabase } from '../lib/supabase';
-import { fetchSettings } from '../lib/settings';
+import { fetchSettings, SETTINGS_TIMEOUT_MS, withTimeout } from '../lib/settings';
 import { AlertIcon, CardIcon } from './Icons';
 
 type Phase = 'checking' | 'email' | 'code' | 'ready';
@@ -51,18 +51,27 @@ export default function AuthGate({ children }: Props) {
     void (async () => {
       // Settings and session in parallel: one round trip, not two in series,
       // because this sits in front of the whole app.
-      const [settings, sessionResult] = await Promise.all([
+      //
+      // Both are bounded. getSession() reads localStorage but will go to the
+      // network to refresh an expired token, and a stalled network there would
+      // leave the user staring at the loading screen indefinitely — the worst
+      // possible failure for an app whose whole point is working on bad wifi.
+      const [settings, restored] = await Promise.all([
         fetchSettings(),
-        client.auth.getSession(),
+        withTimeout(
+          client.auth.getSession().then((result) => result.data.session),
+          SETTINGS_TIMEOUT_MS,
+          null,
+        ),
       ]);
       if (!active) return;
 
-      setSession(sessionResult.data.session);
+      setSession(restored);
       if (!settings.requireEmailVerification) {
         setPhase('ready');
         return;
       }
-      setPhase(sessionResult.data.session ? 'ready' : 'email');
+      setPhase(restored ? 'ready' : 'email');
     })();
 
     // Fires when the magic link in the email brings the user back here.

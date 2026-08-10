@@ -7,9 +7,17 @@ import { cloudEnabled, supabase } from './supabase';
  * had to redeploy to change one. They now live in `app_settings` so /admin can
  * change them and every device picks it up on next load.
  *
- * The build-time env var is still honoured as a floor: if the database says
- * verification is on but the deployment was explicitly built with it off, off
- * wins, so a demo build cannot be locked by a remote setting.
+ * Two rules keep a settings read from becoming a way to break the app, both
+ * learned by watching it happen:
+ *
+ *  - **It always finishes.** A request that hangs is not an error, so a plain
+ *    try/catch never fires and the app sits on its loading screen forever. A
+ *    network that stalls rather than fails is the normal case on conference
+ *    wifi, which is exactly where this app gets opened.
+ *  - **The last known answer is remembered.** Failing closed to "verification
+ *    required" is the right instinct on a first-ever load, but for a returning
+ *    user on a dead network it means being shown a sign-in screen they cannot
+ *    possibly complete. The cache lets them keep scanning.
  */
 export interface AppSettings {
   requireEmailVerification: boolean;
@@ -22,6 +30,11 @@ export const FALLBACK_SETTINGS: AppSettings = {
   aiOcrEnabled: false,
   aiOcrModel: 'google/gemini-2.5-flash',
 };
+
+/** Long enough for a slow connection, short enough not to feel broken. */
+export const SETTINGS_TIMEOUT_MS = 4000;
+
+const CACHE_KEY = 'handshake.settings.v1';
 
 interface SettingsRow {
   require_email_verification: boolean | null;
@@ -38,27 +51,79 @@ export function rowToSettings(row: SettingsRow | null, fallback: AppSettings = F
   };
 }
 
+export function loadCachedSettings(): AppSettings | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    if (typeof parsed.requireEmailVerification !== 'boolean') return null;
+    return { ...FALLBACK_SETTINGS, ...parsed } as AppSettings;
+  } catch {
+    return null;
+  }
+}
+
+export function cacheSettings(settings: AppSettings): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(settings));
+  } catch {
+    /* Private browsing or full storage: the cache is an optimisation. */
+  }
+}
+
 /**
- * Fetches settings, falling back rather than blocking.
+ * Resolves `fallback` if `promise` has not settled in time.
  *
- * A settings read that fails must not stop someone scanning a card, so any
- * error resolves to the fallback. Erring towards "verification required" is the
- * safe direction: the cost of a wrong guess is asking someone to sign in, not
- * leaving the app open.
+ * Exported for tests: the timeout is the whole point of this module, so it
+ * should be provable rather than assumed.
  */
-export async function fetchSettings(fallback: AppSettings = FALLBACK_SETTINGS): Promise<AppSettings> {
+export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(fallback);
+    }, ms);
+
+    promise
+      .then((value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(fallback);
+      });
+  });
+}
+
+/**
+ * Fetches settings, never blocking and never throwing.
+ *
+ * Order of preference: what the server says, then what it last said on this
+ * device, then the safe default.
+ */
+export async function fetchSettings(timeoutMs = SETTINGS_TIMEOUT_MS): Promise<AppSettings> {
+  const cached = loadCachedSettings();
+  const fallback = cached ?? FALLBACK_SETTINGS;
+
   const client = supabase();
+  // No project configured means local-only, where there is nobody to sign in to.
   if (!cloudEnabled || !client) return { ...fallback, requireEmailVerification: false };
 
-  try {
-    const { data, error } = await client
-      .from('app_settings')
-      .select('require_email_verification, ai_ocr_enabled, ai_ocr_model')
-      .eq('id', true)
-      .maybeSingle();
-    if (error) return fallback;
-    return rowToSettings(data as SettingsRow | null, fallback);
-  } catch {
-    return fallback;
-  }
+  const query = client
+    .from('app_settings')
+    .select('require_email_verification, ai_ocr_enabled, ai_ocr_model')
+    .eq('id', true)
+    .maybeSingle()
+    .then(({ data, error }) => (error ? fallback : rowToSettings(data as SettingsRow | null, fallback)));
+
+  const settings = await withTimeout(Promise.resolve(query), timeoutMs, fallback);
+  cacheSettings(settings);
+  return settings;
 }

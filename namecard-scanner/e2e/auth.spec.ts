@@ -145,3 +145,37 @@ test('a backend outage does not block the user', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('heading', { name: /point at the card/i })).toBeVisible();
 });
+
+test('a stalled network still boots the app instead of hanging on the splash', async ({ page }) => {
+  await mockSupabase(page);
+  // A request that never resolves is not an error, so nothing throws and no
+  // catch fires. Before the boot was time-bounded this left the user staring
+  // at the loading screen indefinitely — on exactly the bad conference wifi
+  // this app is built for.
+  await page.route(`${STUB_HOST}/rest/v1/app_settings**`, () => {});
+
+  await page.goto('/');
+  // Resolves via the timeout, not via the request.
+  await expect(page.getByTestId('auth-email')).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByTestId('auth-checking')).toHaveCount(0);
+});
+
+test('a device that already learned verification is off keeps working offline', async ({ page }) => {
+  await mockSupabase(page);
+  await page.goto('/');
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'handshake.settings.v1',
+      JSON.stringify({ requireEmailVerification: false, aiOcrEnabled: false, aiOcrModel: 'google/gemini-2.5-flash' }),
+    ),
+  );
+
+  // Now the network dies completely.
+  await page.route(`${STUB_HOST}/**`, (route) => route.abort('failed'));
+  await page.reload();
+
+  // Falling back to "verification required" here would show a sign-in screen
+  // the user cannot possibly complete without a network.
+  await expect(page.getByTestId('profile-name')).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByTestId('auth-email')).toHaveCount(0);
+});
