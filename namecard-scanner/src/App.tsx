@@ -16,7 +16,8 @@ import { prepareImage } from './lib/preprocess';
 import { appendLog, clearLocalData, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
 import type { Session } from '@supabase/supabase-js';
 import AuthGate from './components/AuthGate';
-import { cloudEnabled, emailVerificationRequired, supabase } from './lib/supabase';
+import AdminPanel from './components/AdminPanel';
+import { cloudEnabled, supabase } from './lib/supabase';
 import { fetchLog, fetchProfile, recordFollowUp, saveProfile as saveProfileRemote } from './lib/backend';
 
 type Step = 'scan' | 'reading' | 'confirm' | 'context' | 'review' | 'sent';
@@ -316,7 +317,6 @@ function Handshake({ session }: { session: Session | null }) {
           email={session?.user.email ?? ''}
           syncError={syncError}
           canSignOut={cloudEnabled && Boolean(session)}
-          verificationDisabled={cloudEnabled && !emailVerificationRequired}
           onSave={persistProfile}
           onClose={() => setShowSetup(false)}
           onSignOut={signOut}
@@ -385,7 +385,35 @@ function Handshake({ session }: { session: Session | null }) {
   );
 }
 
+/** Minimal routing: /admin is the only route that is not the scanner. */
+function useIsAdminRoute(): [boolean, (on: boolean) => void] {
+  const [isAdmin, setIsAdmin] = useState(() => window.location.pathname.replace(/\/+$/, '') === '/admin');
+
+  useEffect(() => {
+    const onPop = () => setIsAdmin(window.location.pathname.replace(/\/+$/, '') === '/admin');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const go = useCallback((on: boolean) => {
+    window.history.pushState({}, '', on ? '/admin' : '/');
+    setIsAdmin(on);
+  }, []);
+
+  return [isAdmin, go];
+}
+
 export default function App() {
+  const [isAdmin, goAdmin] = useIsAdminRoute();
+
+  if (isAdmin) {
+    return (
+      <div className="app">
+        <AdminPanel onExit={() => goAdmin(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <AuthGate>{(session) => <Handshake session={session} />}</AuthGate>

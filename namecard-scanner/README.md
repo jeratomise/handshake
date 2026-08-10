@@ -100,17 +100,48 @@ To switch it on:
 
 Redeploy the function after changing secrets.
 
-### Skipping verification
+## Admin — `/admin`
 
-`VITE_REQUIRE_EMAIL_VERIFICATION=false` (a Vercel environment variable) walks
-straight into the scanner with no sign-in. Useful for demos and for working on
-the flow before email delivery is configured.
+Runtime configuration, password protected. Nothing links to it from the app;
+it is reached by typing the URL.
 
-Only an explicit `false` disables it — a typo, an empty value or an unset
-variable all leave verification on, because the mistake worth guarding against
-is accidentally shipping an open app. With verification off there is no
-signed-in user, so nothing syncs: profile and history stay on the device, and
-the settings screen says so.
+| Setting | Effect |
+| --- | --- |
+| Require email verification | Whether users sign in before the scanner opens |
+| AI card reading | Read cards with a vision model instead of on-device OCR |
+| OpenRouter API key | Write-only; stored where only the server can read it |
+| Model | Which vision model to use |
+
+Set the password once, in **Supabase → Edge Functions → Secrets**, as
+`ADMIN_PASSWORD`. Until it is set, `/admin` says so rather than letting anyone
+in.
+
+Two things are deliberate:
+
+**The password is checked on the server, never in the page.** A client-side
+gate is decoration — anyone can skip it, and the settings it "protects" would
+be readable anyway. Every read and write goes through the `admin-settings`
+edge function, which validates the password on each call and compares by hash
+so the comparison cannot be timed.
+
+**The OpenRouter key is written but never read back.** `app_secrets` has row
+level security on with *no policies at all*, so the anon key cannot reach it
+under any circumstances; only `service_role`, inside the edge function, can.
+The panel shows a masked hint (`sk-or-v1…wxyz`) so you can tell which key is
+installed. A provider key readable by the browser is a key anyone can drain.
+
+### The build-time override
+
+`VITE_REQUIRE_EMAIL_VERIFICATION=false` in Vercel forces verification off and
+**overrides the admin toggle**. It exists so a demo build cannot be locked by a
+remote setting.
+
+That means: **to let `/admin` control sign-in, remove that variable from
+Vercel.** While it is set to `false`, the toggle in the panel has no effect on
+this deployment.
+
+Only an exact `false` disables it — a typo, an empty value or an unset variable
+all leave the runtime setting in charge.
 
 ## Deploying (Vercel)
 
@@ -151,7 +182,7 @@ npm run preview        # serve the built app on :4173
 ```bash
 npm test               # 80 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 18 browser tests against the real production build
+npm run e2e            # 25 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it

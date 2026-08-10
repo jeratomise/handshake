@@ -860,3 +860,120 @@ details.raw[open] > summary::before {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ============================================================================
+   Admin panel
+   Deliberately plainer than the scanner: this is an operator surface, and the
+   signal colour is reserved for state that matters, not for decoration.
+   ========================================================================= */
+.admin-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.admin-row + .admin-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.admin-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-row-text h3 {
+  margin: 0 0 5px;
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--paper);
+}
+
+.admin-row-text p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--paper-faint);
+}
+
+/* Switch. 52x32 keeps the hit area comfortably above the 44px minimum once
+   the surrounding padding is counted. */
+.toggle {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  margin-top: 2px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: var(--ink-600);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.toggle span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--paper-faint);
+  transition: transform 0.22s var(--ease), background 0.22s var(--ease);
+}
+
+.toggle[aria-checked='true'] {
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+.toggle[aria-checked='true'] span {
+  transform: translateX(20px);
+  background: var(--ink-900);
+}
+
+.toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------- mobile polish */
+
+/* The action bar floats over the panel, so the last element needs clearance
+   or it sits permanently half-hidden behind it. The context screen carries
+   three buttons and is the tallest, hence the generous value. */
+.panel {
+  padding-bottom: calc(var(--bar-h) + 44px);
+  scroll-padding-bottom: calc(var(--bar-h) + 24px);
+}
+
+/* Focusing an input near the bottom on a phone puts it behind the keyboard;
+   this keeps a comfortable margin when the browser scrolls it into view. */
+input,
+textarea,
+select {
+  scroll-margin-bottom: calc(var(--bar-h) + 24px);
+  scroll-margin-top: 90px;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--ink-700);
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  padding: 1px 5px;
+  word-break: break-word;
+}
+
+/* Long values — emails, model ids — must wrap rather than widen the page. */
+.field-note {
+  overflow-wrap: anywhere;
+}

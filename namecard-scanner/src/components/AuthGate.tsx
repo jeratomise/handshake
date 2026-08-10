@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { emailVerificationRequired, supabase } from '../lib/supabase';
+import { cloudEnabled, emailVerificationRequired, supabase } from '../lib/supabase';
+import { fetchSettings } from '../lib/settings';
 import { AlertIcon, CardIcon } from './Icons';
 
 type Phase = 'checking' | 'email' | 'code' | 'ready';
@@ -21,12 +22,16 @@ const RESEND_SECONDS = 45;
  * easier than following a link out of a mail client — which, on a phone at a
  * trade show, it usually is.
  *
- * The gate steps aside entirely when Supabase is not configured, or when
- * VITE_REQUIRE_EMAIL_VERIFICATION=false — in both cases the app runs
- * local-only, storing the profile and history on the device.
+ * Whether the gate applies is a runtime setting, read from Supabase at boot so
+ * /admin can change it without a redeploy. The build-time
+ * VITE_REQUIRE_EMAIL_VERIFICATION=false acts as a floor that a remote setting
+ * cannot override, so a deliberately open demo build stays open. With the gate
+ * off the app runs local-only, storing profile and history on the device.
  */
 export default function AuthGate({ children }: Props) {
-  const [phase, setPhase] = useState<Phase>(emailVerificationRequired ? 'checking' : 'ready');
+  // Start in 'checking' whenever Supabase might have something to say, so the
+  // sign-in screen never flashes up before settings arrive and say it is off.
+  const [phase, setPhase] = useState<Phase>(cloudEnabled && emailVerificationRequired ? 'checking' : 'ready');
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -37,17 +42,28 @@ export default function AuthGate({ children }: Props) {
   const codeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!emailVerificationRequired) return;
+    if (!cloudEnabled || !emailVerificationRequired) return;
     const client = supabase();
     if (!client) return;
 
     let active = true;
 
-    void client.auth.getSession().then(({ data }) => {
+    void (async () => {
+      // Settings and session in parallel: one round trip, not two in series,
+      // because this sits in front of the whole app.
+      const [settings, sessionResult] = await Promise.all([
+        fetchSettings(),
+        client.auth.getSession(),
+      ]);
       if (!active) return;
-      setSession(data.session);
-      setPhase(data.session ? 'ready' : 'email');
-    });
+
+      setSession(sessionResult.data.session);
+      if (!settings.requireEmailVerification) {
+        setPhase('ready');
+        return;
+      }
+      setPhase(sessionResult.data.session ? 'ready' : 'email');
+    })();
 
     // Fires when the magic link in the email brings the user back here.
     const { data: subscription } = client.auth.onAuthStateChange((_event, next) => {
