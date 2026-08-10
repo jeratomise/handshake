@@ -180,7 +180,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 80 unit tests — parsing, phone normalisation, drafting
+npm test               # 98 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 25 browser tests against the real production build
 ```
@@ -193,12 +193,36 @@ to the running app, waits for the real OCR engine to read it, and asserts on the
 node e2e/make-fixture.mjs
 ```
 
+### OCR benchmark
+
+Card reading is on-device Tesseract, and accuracy work on it is guesswork
+without a scoreboard — preprocessing changes routinely help one kind of card
+and wreck another.
+
+```bash
+npm run build && npm run preview     # in one shell
+node e2e/make-fixtures.mjs           # render the cards, once
+node e2e/ocr-bench.mjs               # score them
+```
+
+Twelve cards, each a real failure mode rather than an arbitrary distortion:
+low contrast, rotated, light-on-dark, small type, serif, uneven lighting, four
+photo-like variants (blur, perspective, dim, glare — rendered as low-quality
+JPEGs so the compression artefacts are genuine), and a bilingual
+Chinese/English card. Fields are weighted by what actually breaks a follow-up:
+the phone number counts triple, the name and greeting double.
+
+Current: **120/120**. Worth knowing that the crisp variants are all trivially
+passed — the benchmark's value is as a regression guard and as the thing that
+found the bilingual bug below.
+
 ## How it is put together
 
 | Path | Responsibility |
 | --- | --- |
 | `src/lib/preprocess.ts` | EXIF-correct decode, resize, greyscale, contrast stretch |
 | `src/lib/ocr.ts` | Tesseract worker, all assets self-hosted |
+| `src/lib/settings.ts` | Runtime config, time-bounded and cached on device |
 | `src/lib/parseCard.ts` | OCR text → name, title, company, email, phones |
 | `src/lib/phone.ts` | Phone normalisation to E.164 and the `wa.me` link |
 | `src/lib/draft.ts` | Tone/CTA-aware message composition, vCard export |
@@ -223,6 +247,15 @@ handles trunk prefixes, missing `+`, country codes printed without one, and the
 genuinely ambiguous cases (an 11-digit Indonesian number is both a valid national
 number and a valid `62` + 9-digit one — mobile prefixes break the tie). Anything
 inferred is surfaced as a warning on the confirm screen.
+
+**Bilingual cards need the good half rescued from the bad.** The model is
+English-only, so "区域销售总监 · Regional Sales Director" comes back as
+"Xims8E 2% - Regional Sales Director". The title is right there, but the noise
+carries digits, and the parser used to reject the whole line for it. Lines that
+look misread are now split on separators and the clean segment kept — and only
+those lines, so a company genuinely called "Smith / Jones Partners" keeps its
+slash. Note the tell is stray digits, not non-ASCII: an English-only model does
+not return the characters it failed on, it guesses and returns plausible ASCII.
 
 **Mobile beats office, and fax is never chosen.** A card typically lists two or
 three numbers. `pickBestPhone` prefers an explicitly labelled mobile, then an

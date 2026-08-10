@@ -172,29 +172,25 @@ export default function AdminPanel({ onExit }: Props) {
           <div className="admin-row-text">
             <h3>AI card reading</h3>
             <p>
-              Reads cards with a vision model instead of on-device OCR. Better on stylised, dark or non-Latin cards —
-              but card images leave the device and each scan costs money.
+              Every scan uses on-device OCR. Reading cards with a vision model instead is not built yet — the key and
+              model below are stored ready for it, but nothing sends them anywhere.
             </p>
           </div>
+          {/* Deliberately inert. A switch that flips but changes nothing is
+              worse than no switch: it invites someone to conclude the feature
+              is broken rather than absent. */}
           <button
             type="button"
             role="switch"
-            aria-checked={settings.aiOcrEnabled}
-            aria-label="AI card reading"
+            aria-checked={false}
+            aria-label="AI card reading — not available yet"
             className="toggle"
-            disabled={busy || !openrouter.configured}
-            onClick={() => void save({ aiOcrEnabled: !settings.aiOcrEnabled })}
+            disabled
             data-testid="toggle-ai-ocr"
           >
             <span />
           </button>
         </div>
-
-        {!openrouter.configured ? (
-          <p className="field-note warn" style={{ marginTop: -6, marginBottom: 18 }}>
-            Add an OpenRouter key below before this can be switched on.
-          </p>
-        ) : null}
 
         <label className="field">
           <span className="field-label">OpenRouter API key</span>
@@ -209,7 +205,8 @@ export default function AdminPanel({ onExit }: Props) {
           />
           <p className="field-note">
             Stored where only the server can read it, and never sent back to this page — which is why the box shows a
-            masked hint rather than the key. It is never exposed to the browsers your team uses.
+            masked hint rather than the key. Nothing uses it yet; it is here so the switch above is a one-line change
+            when you want it.
           </p>
         </label>
 
@@ -227,7 +224,7 @@ export default function AdminPanel({ onExit }: Props) {
             type="button"
             className="btn btn-ghost"
             disabled={busy || !openrouter.configured}
-            onClick={() => void save({ aiOcrEnabled: false }, 'CLEAR')}
+            onClick={() => void save({}, 'CLEAR')}
             data-testid="admin-clear-key"
           >
             Remove key

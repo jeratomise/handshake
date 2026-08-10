@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanLines, greetingName, parseCard, titleCase } from '../src/lib/parseCard';
+import { cleanLines, greetingName, parseCard, rescuePhrase, titleCase } from '../src/lib/parseCard';
 import { pickBestPhone } from '../src/lib/phone';
 
 /** A tidy Singapore card, the happy path. */
@@ -224,5 +224,56 @@ describe('parseCard — degenerate input', () => {
     const card = parseCard('Sales Director\nmaria.gonzalez@acme.com');
     expect(card.name).toBe('Maria Gonzalez');
     expect(card.firstName).toBe('Maria');
+  });
+});
+
+describe('rescuePhrase — bilingual cards', () => {
+  it('recovers a job title from a line the OCR half-mangled', () => {
+    // What an English-only model returns for "区域销售总监 · Regional Sales Director".
+    expect(rescuePhrase('Xims8E 2% - Regional Sales Director', /director|sales/i)).toBe('Regional Sales Director');
+  });
+
+  it('recovers a company from debris around it', () => {
+    expect(
+      rescuePhrase('EFRMEABPR/Z ET] MERIDIAN LOGISTICS PTE LTD', /ltd|pte/i),
+    ).toBe('MERIDIAN LOGISTICS PTE LTD');
+  });
+
+  it('leaves a clean line completely alone', () => {
+    // No debris, so a slash or dash that is genuinely part of the name survives.
+    expect(rescuePhrase('Smith / Jones Partners', /partners/i)).toBe('Smith / Jones Partners');
+    expect(rescuePhrase('Regional Sales Director', /director/i)).toBe('Regional Sales Director');
+    expect(rescuePhrase('Meridian Logistics Pte Ltd', /ltd/i)).toBe('Meridian Logistics Pte Ltd');
+  });
+
+  it('returns the original when nothing matches the anchor', () => {
+    expect(rescuePhrase('文字 ABC', /director/i)).toBe('文字 ABC');
+  });
+});
+
+describe('parseCard — bilingual card', () => {
+  const card = parseCard(`fis{HEA
+TAN WEI MING
+
+Xims8E 2% - Regional Sales Director
+
+EFRMEABPR/Z ET] MERIDIAN LOGISTICS PTE LTD
+
+F4 M: +65 9123 4567
+FYE Tel: +65 6222 8888
+
+weiming.tan@meridianlogistics.com`);
+
+  it('still finds the name and greeting', () => {
+    expect(card.name).toBe('Tan Wei Ming');
+    expect(card.firstName).toBe('Wei Ming');
+  });
+
+  it('recovers the title that the debris used to hide', () => {
+    expect(card.title).toBe('Regional Sales Director');
+  });
+
+  it('strips the debris from the company', () => {
+    expect(card.company).toBe('Meridian Logistics Pte Ltd');
   });
 });

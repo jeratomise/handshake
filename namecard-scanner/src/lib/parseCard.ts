@@ -61,6 +61,52 @@ const ADDRESS_RE = /\b(road|rd\.?|street|st\.?|avenue|ave\.?|lane|drive|dr\.?|bo
 
 const NOISE_RE = /^[^A-Za-z0-9]+$/;
 
+/**
+ * Marks a line the OCR clearly struggled with.
+ *
+ * Note this is not "contains non-ASCII". An English-only model does not hand
+ * back the characters it failed on — it guesses, and returns plausible ASCII.
+ * "区域销售总监" comes back as "Xims8E 2%", which looks perfectly printable. The
+ * tell is stray digits and brackets sitting next to real words.
+ */
+function looksMisread(line: string): boolean {
+  return countDigits(line) > 0 || /[[\]{}\\|]|[^\x20-\x7E]/.test(line);
+}
+
+const SEGMENT_SPLIT = /[|·•\][/\\]+|\s[-–—]\s/;
+
+/**
+ * Rescues the readable phrase from a line the OCR only half-understood.
+ *
+ * Bilingual cards are the norm in this market, and an English-only model turns
+ * the non-Latin half into noise: "区域销售总监 · Regional Sales Director" comes
+ * back as "Xims8E 2% - Regional Sales Director". The job title is right there,
+ * but the noise carries digits, which used to disqualify the whole line and
+ * throw the good half away with the bad.
+ *
+ * A clean line is returned untouched, so a company genuinely named
+ * "Smith / Jones Partners" keeps its slash. Only a line that already looks
+ * misread is worth cutting up.
+ */
+export function rescuePhrase(line: string, anchor: RegExp): string {
+  if (!looksMisread(line)) return line;
+
+  const segments = line
+    .split(SEGMENT_SPLIT)
+    .map((segment) => segment.replace(/[^\x20-\x7E]+/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (segments.length < 2) return line;
+
+  // Only accept a segment that is cleaner than what we started with; otherwise
+  // splitting has bought nothing and risks losing part of a real name.
+  const better = segments.filter((segment) => anchor.test(segment) && !looksMisread(segment));
+  if (better.length === 0) return line;
+
+  const letterRatio = (s: string) => (s.match(/[A-Za-z]/g) ?? []).length / Math.max(1, s.length);
+  better.sort((a, b) => letterRatio(b) - letterRatio(a));
+  return better[0]!;
+}
+
 /** Collapses OCR whitespace noise and drops lines that carry no information. */
 export function cleanLines(rawText: string): string[] {
   return rawText
@@ -322,16 +368,26 @@ export function parseCard(rawText: string): ParsedCard {
       nameCandidates.push({ line: titleCase(stripNameDecorations(line)), index, score });
     }
 
-    if (!isStructural && ROLE_RE.test(line) && countDigits(line) === 0 && line.length <= 60 && !ADDRESS_RE.test(line)) {
+    // Rescue first: a bilingual line reads as debris plus the phrase we want,
+    // and judging the raw line throws the good half away with the bad.
+    const titleLine = rescuePhrase(line, ROLE_RE);
+    if (
+      !isStructural &&
+      ROLE_RE.test(titleLine) &&
+      countDigits(titleLine) === 0 &&
+      titleLine.length <= 60 &&
+      !ADDRESS_RE.test(titleLine)
+    ) {
       let score = 10 - index;
-      if (!COMPANY_RE.test(line)) score += 4;
-      titleCandidates.push({ line, index, score });
+      if (!COMPANY_RE.test(titleLine)) score += 4;
+      titleCandidates.push({ line: titleLine, index, score });
     }
 
-    if (!isStructural && COMPANY_RE.test(line) && !ADDRESS_RE.test(line) && line.length <= 60) {
+    const companyLine = rescuePhrase(line, COMPANY_RE);
+    if (!isStructural && COMPANY_RE.test(companyLine) && !ADDRESS_RE.test(companyLine) && companyLine.length <= 60) {
       let score = 10 - index;
-      if (!ROLE_RE.test(line)) score += 4;
-      companyCandidates.push({ line, index, score });
+      if (!ROLE_RE.test(companyLine)) score += 4;
+      companyCandidates.push({ line: companyLine, index, score });
     }
   });
 
