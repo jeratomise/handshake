@@ -328,6 +328,35 @@ h1 em {
   color: var(--line);
 }
 
+/* The <video> is mounted on every render so its ref exists the moment
+   getUserMedia resolves — it is faded in rather than mounted late, because a
+   late mount means the stream has nothing to attach to. Opacity, not
+   display:none: a hidden video element does not decode frames. */
+.viewfinder video {
+  opacity: 0;
+  transition: opacity 240ms var(--ease);
+}
+
+.viewfinder.live video {
+  opacity: 1;
+}
+
+/* An inline remedy for a blocked or busy camera, so the user can recover
+   without a reload once they have changed the browser setting. */
+.link-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--signal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 /* Corner brackets: the single strongest "this is a scanner" cue. */
 .brackets {
   position: absolute;

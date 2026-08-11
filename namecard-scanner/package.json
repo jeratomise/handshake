@@ -14,7 +14,8 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "marketing": "node marketing/make-qr.mjs && node marketing/build-infographic.mjs"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.8",
@@ -30,6 +31,9 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4",
     "typescript": "^5.9.3",
     "vite": "^7.1.0",
     "vitest": "^3.2.4"

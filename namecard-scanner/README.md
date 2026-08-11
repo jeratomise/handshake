@@ -170,7 +170,15 @@ access (Vercel's does).
 The camera viewfinder needs a secure context. `localhost` counts as one; to test
 from a phone on your LAN, serve the preview build over HTTPS or use a tunnel.
 Without camera access the app falls back to the native photo picker, which works
-everywhere.
+everywhere, and says *why* the viewfinder is unavailable rather than giving one
+generic message — a camera held by a video call and a camera blocked in browser
+settings need different things from the user.
+
+The live viewfinder is covered by `e2e/camera.spec.ts`, which runs Chromium
+with a synthetic camera device. It asserts the `<video>` is actually bound to a
+live `MediaStream` and reporting frame dimensions, not merely present: an
+unbound video element renders as a black box and is indistinguishable from a
+working one in a screenshot.
 
 ```bash
 npm run build          # typecheck + production build
@@ -182,7 +190,7 @@ npm run preview        # serve the built app on :4173
 ```bash
 npm test               # 98 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 25 browser tests against the real production build
+npm run e2e            # 29 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it
@@ -215,6 +223,40 @@ the phone number counts triple, the name and greeting double.
 Current: **120/120**. Worth knowing that the crisp variants are all trivially
 passed — the benchmark's value is as a regression guard and as the thing that
 found the bilingual bug below.
+
+## Sales collateral
+
+A one-page infographic for pitching the app to a sales team, with a QR code to
+the live deployment.
+
+```bash
+npm run marketing
+```
+
+Produces, in `marketing/assets/`:
+
+| File | For |
+| --- | --- |
+| `handshake-infographic.png` | 2400×3600 — print, A3 without softening |
+| `handshake-infographic-share.png` | 1200×1800 — WhatsApp, Slack, email |
+| `handshake-infographic.html` | Self-contained, every asset inlined; open or print it |
+
+Point it at a different deployment with
+`node marketing/make-qr.mjs https://your-url && node marketing/build-infographic.mjs https://your-url`.
+
+**The QR code is generated, not drawn.** An image model will produce a
+convincing-looking grid that decodes to nothing — the error-correction blocks
+have to be bit-exact, and nobody notices they aren't until it is printed on a
+stand. So it is generated deterministically and then read back with a
+*different* library than the one that wrote it, out of the finished poster
+rather than the source file, at both sizes and after a quality-55 JPEG
+re-encode. That last one is the realistic case: forwarding through a messaging
+app is where a QR code actually dies. Any of those failing exits non-zero.
+
+The generative model only supplies the photograph in the band, where being
+approximately right is the whole job. The layout also asserts it fits — blocks
+are `flex: none`, so an over-full poster fails the build instead of silently
+squashing the photo band to a sliver.
 
 ## How it is put together
 
