@@ -170,7 +170,15 @@ access (Vercel's does).
 The camera viewfinder needs a secure context. `localhost` counts as one; to test
 from a phone on your LAN, serve the preview build over HTTPS or use a tunnel.
 Without camera access the app falls back to the native photo picker, which works
-everywhere.
+everywhere, and says *why* the viewfinder is unavailable rather than giving one
+generic message — a camera held by a video call and a camera blocked in browser
+settings need different things from the user.
+
+The live viewfinder is covered by `e2e/camera.spec.ts`, which runs Chromium
+with a synthetic camera device. It asserts the `<video>` is actually bound to a
+live `MediaStream` and reporting frame dimensions, not merely present: an
+unbound video element renders as a black box and is indistinguishable from a
+working one in a screenshot.
 
 ```bash
 npm run build          # typecheck + production build
@@ -182,7 +190,7 @@ npm run preview        # serve the built app on :4173
 ```bash
 npm test               # 98 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 25 browser tests against the real production build
+npm run e2e            # 29 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it
