@@ -216,6 +216,40 @@ Current: **120/120**. Worth knowing that the crisp variants are all trivially
 passed — the benchmark's value is as a regression guard and as the thing that
 found the bilingual bug below.
 
+## Sales collateral
+
+A one-page infographic for pitching the app to a sales team, with a QR code to
+the live deployment.
+
+```bash
+npm run marketing
+```
+
+Produces, in `marketing/assets/`:
+
+| File | For |
+| --- | --- |
+| `handshake-infographic.png` | 2400×3600 — print, A3 without softening |
+| `handshake-infographic-share.png` | 1200×1800 — WhatsApp, Slack, email |
+| `handshake-infographic.html` | Self-contained, every asset inlined; open or print it |
+
+Point it at a different deployment with
+`node marketing/make-qr.mjs https://your-url && node marketing/build-infographic.mjs https://your-url`.
+
+**The QR code is generated, not drawn.** An image model will produce a
+convincing-looking grid that decodes to nothing — the error-correction blocks
+have to be bit-exact, and nobody notices they aren't until it is printed on a
+stand. So it is generated deterministically and then read back with a
+*different* library than the one that wrote it, out of the finished poster
+rather than the source file, at both sizes and after a quality-55 JPEG
+re-encode. That last one is the realistic case: forwarding through a messaging
+app is where a QR code actually dies. Any of those failing exits non-zero.
+
+The generative model only supplies the photograph in the band, where being
+approximately right is the whole job. The layout also asserts it fits — blocks
+are `flex: none`, so an over-full poster fails the build instead of silently
+squashing the photo band to a sliver.
+
 ## How it is put together
 
 | Path | Responsibility |

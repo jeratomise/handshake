@@ -1,0 +1,5 @@
+# Derived from infographic.template.html + hero.png + qr.png on every build.
+# The 4.7 MB self-contained HTML inlines all of them, so committing it would
+# duplicate the checked-in PNGs and churn the diff on every rebuild.
+handshake-infographic.html
+qr-jpeg-probe.jpg

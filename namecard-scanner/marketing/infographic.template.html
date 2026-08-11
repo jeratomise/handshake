@@ -1,0 +1,446 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Handshake — card in, WhatsApp out</title>
+<style>
+  /* Fonts and images are inlined as data URIs by build-infographic.mjs, so the
+     rendered file is self-contained and screenshots identically anywhere. */
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('__FONT__') format('woff2-variations');
+    font-weight: 300 700;
+    font-display: block;
+  }
+
+  :root {
+    --ink-900: #08090b;
+    --ink-800: #0d0f12;
+    --ink-700: #141619;
+    --ink-600: #1b1e23;
+    --line: #2b3038;
+    --paper: #f4f2ec;
+    --paper-dim: #a8adb6;
+    --paper-faint: #6f757f;
+    --signal: #ccff3f;
+    --wa: #25d366;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 1200px;
+    height: 1800px;
+    background: var(--ink-900);
+    color: var(--paper);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .poster {
+    position: relative;
+    width: 1200px;
+    height: 1800px;
+    padding: 64px 64px 56px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* A single lime bloom behind the headline, so the page has a light source
+       rather than a flat fill. */
+    background:
+      radial-gradient(900px 620px at 78% -6%, rgba(204, 255, 63, 0.13), transparent 62%),
+      radial-gradient(700px 700px at -10% 42%, rgba(255, 122, 69, 0.06), transparent 60%),
+      var(--ink-900);
+  }
+
+  /* Faint engineering grid — reads as precision, not decoration. */
+  .poster::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244, 242, 236, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244, 242, 236, 0.028) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  /* Never let a block absorb overflow by shrinking — an over-full poster should
+     visibly break so build-infographic.mjs can catch it, not quietly squash the
+     photo band down to a sliver. */
+  .poster > * { position: relative; flex: none; }
+
+  /* ------------------------------------------------------------- masthead */
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .wordmark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--signal);
+    box-shadow: 0 0 22px rgba(204, 255, 63, 0.65);
+  }
+
+  .kicker {
+    font-size: 17px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--paper-faint);
+  }
+
+  /* ------------------------------------------------------------- headline */
+  .lede { padding: 36px 0 0; }
+
+  h1 {
+    font-size: 104px;
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    font-weight: 700;
+  }
+
+  h1 .out { color: var(--signal); }
+
+  .sub {
+    margin-top: 26px;
+    max-width: 780px;
+    font-size: 25px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+
+  .sub b { color: var(--paper); font-weight: 500; }
+
+  /* ------------------------------------------------------------- hero band */
+  /* Two panels rather than text-over-photo: overlaid copy either washes the
+     photograph out or lands on top of the phone screen, and both look cheap. */
+  .band {
+    margin-top: 34px;
+    position: relative;
+    height: 258px;
+    border-radius: 26px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--ink-800);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+
+  .band-copy {
+    z-index: 2;
+    padding: 0 18px 0 38px;
+  }
+
+  .band-shot {
+    position: relative;
+    height: 100%;
+  }
+
+  .band-shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 45%;
+  }
+
+  /* Feather the inner edge so the photograph dissolves into the panel instead
+     of butting against it with a seam. */
+  .band-shot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--ink-800) 0%, rgba(13, 15, 18, 0.62) 24%, transparent 58%);
+  }
+
+  .band-copy .stat {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--signal);
+  }
+
+  .band-copy .stat-label {
+    margin-top: 10px;
+    font-size: 19px;
+    line-height: 1.4;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+
+  /* ----------------------------------------------------------------- flow */
+  .flow {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+
+  .step {
+    padding: 20px 16px 22px;
+    border-radius: 16px;
+    background: var(--ink-700);
+    border: 1px solid var(--line);
+    position: relative;
+  }
+
+  .step:last-child {
+    background: linear-gradient(180deg, rgba(37, 211, 102, 0.16), rgba(37, 211, 102, 0.04));
+    border-color: rgba(37, 211, 102, 0.42);
+  }
+
+  .step .n {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+  }
+
+  .step:last-child .n { color: var(--wa); }
+
+  .step .t {
+    margin-top: 10px;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .step .d {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1.35;
+    color: var(--paper-faint);
+    font-weight: 300;
+  }
+
+  /* ------------------------------------------------------------- features */
+  .features {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .card {
+    padding: 22px 26px 24px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--ink-700), var(--ink-800));
+    border: 1px solid var(--line);
+  }
+
+  .card h3 {
+    font-size: 23px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .card h3::before {
+    content: '';
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: var(--signal);
+    transform: translateY(-3px);
+  }
+
+  .card p {
+    margin-top: 9px;
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+
+  /* ------------------------------------------------------------------- QR */
+  .cta {
+    margin-top: auto;
+    padding-top: 30px;
+    display: flex;
+    align-items: center;
+    gap: 34px;
+  }
+
+  .qr {
+    flex: none;
+    width: 204px;
+    height: 204px;
+    padding: 14px;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px rgba(204, 255, 63, 0.35), 0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+
+  .qr img { display: block; width: 100%; height: 100%; }
+
+  .cta-copy { flex: 1; }
+
+  .cta-copy .eyebrow {
+    font-size: 16px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--signal);
+    font-weight: 500;
+  }
+
+  .cta-copy h2 {
+    margin-top: 10px;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .url {
+    margin-top: 16px;
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: var(--ink-600);
+    border: 1px solid var(--line);
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    color: var(--paper);
+  }
+
+  .cta-copy .note {
+    margin-top: 14px;
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--paper-faint);
+    font-weight: 300;
+  }
+</style>
+
+<div class="poster">
+  <div class="masthead">
+    <div class="wordmark"><span class="dot"></span>Handshake</div>
+    <div class="kicker">Built for field sales</div>
+  </div>
+
+  <div class="lede">
+    <h1>Card in.<br /><span class="out">WhatsApp out.</span></h1>
+    <p class="sub">
+      Those cards in your jacket pocket are a pipeline you have not contacted
+      yet. Photograph one, check the draft, and it opens in WhatsApp —
+      <b>before you leave the booth.</b>
+    </p>
+  </div>
+
+  <div class="band">
+    <div class="band-copy">
+      <div class="stat">No typing.</div>
+      <div class="stat-label">
+        Name, title, company, email and the right phone number, lifted off the
+        card into one screen you can correct.
+      </div>
+    </div>
+    <div class="band-shot"><img src="__HERO__" alt="" /></div>
+  </div>
+
+  <div class="flow">
+    <div class="step">
+      <div class="n">01</div>
+      <div class="t">Snap</div>
+      <div class="d">Camera or photo roll</div>
+    </div>
+    <div class="step">
+      <div class="n">02</div>
+      <div class="t">Read</div>
+      <div class="d">On the phone, seconds</div>
+    </div>
+    <div class="step">
+      <div class="n">03</div>
+      <div class="t">Check</div>
+      <div class="d">Fix anything odd</div>
+    </div>
+    <div class="step">
+      <div class="n">04</div>
+      <div class="t">Where?</div>
+      <div class="d">One tap, skippable</div>
+    </div>
+    <div class="step">
+      <div class="n">05</div>
+      <div class="t">Send</div>
+      <div class="d">Opens in WhatsApp</div>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="card">
+      <h3>It picks the right number</h3>
+      <p>
+        Mobile before office, never the fax line. A wrong country code makes
+        WhatsApp open an empty chat and say nothing, so numbers are rebuilt
+        properly and every guess is flagged.
+      </p>
+    </div>
+    <div class="card">
+      <h3>The card stays on your phone</h3>
+      <p>
+        Reading happens on the device itself. No upload, and no third-party
+        service holding a photograph of someone else's contact details.
+      </p>
+    </div>
+    <div class="card">
+      <h3>The message is already written</h3>
+      <p>
+        Warm, direct or formal, with an optional ask — a meeting, an overview,
+        or simply keeping in touch. Every word is yours to edit first.
+      </p>
+    </div>
+    <div class="card">
+      <h3>One bar of signal is enough</h3>
+      <p>
+        The card reader ships inside the app instead of being fetched when you
+        need it, so a basement exhibition hall does not stop you.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Nothing to install</h3>
+      <p>
+        It is a web address. Open it, add it to your home screen, and it behaves
+        like an app — on iPhone and Android alike.
+      </p>
+    </div>
+    <div class="card">
+      <h3>You always send it yourself</h3>
+      <p>
+        The draft opens in WhatsApp with the contact ready. Pressing send is
+        still your call — nothing ever goes out on your behalf.
+      </p>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="qr"><img src="__QR__" alt="QR code linking to the Handshake web app" /></div>
+    <div class="cta-copy">
+      <div class="eyebrow">Try it on the next card you get</div>
+      <h2>Point your camera here.</h2>
+      <div class="url">__URL_DISPLAY__</div>
+      <p class="note">
+        Works in any phone browser. Add to your home screen and it opens like an
+        app the next time you need it.
+      </p>
+    </div>
+  </div>
+</div>
