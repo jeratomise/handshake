@@ -188,7 +188,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 98 unit tests — parsing, phone normalisation, drafting
+npm test               # 114 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 29 browser tests against the real production build
 ```
@@ -303,6 +303,21 @@ not return the characters it failed on, it guesses and returns plausible ASCII.
 three numbers. `pickBestPhone` prefers an explicitly labelled mobile, then an
 unlabelled number whose prefix marks it as mobile, then the office line — and
 refuses a fax number outright.
+
+**A stated country code beats an assumed one, and identifiers are not phones.**
+Two failures from one real Malaysian card. Its mobile is printed
+`(6019) 7314 959` — country code inside the brackets, no `+` anywhere — and
+its tax number `(TIN No. : C 854327050)` sits four lines below. Nine digits
+starting with `8` is a valid Singapore mobile, so for a Singapore-based user
+the *tax number* normalised cleanly, collected the "unlabelled but
+mobile-prefixed" bonus, and won the WhatsApp link outright.
+
+So `normalizePhone` now reports a confidence — `exact` when the card stated the
+country code, `guess` when the home market was assumed — and a guess never
+outranks a stated one. Lines carrying a tax or registration marker are dropped
+before phone extraction entirely. Bracketed country codes are read, but only on
+a strict length match: `(415) 555-0123` opens with `41`, and without that check
+a New York card would dial Switzerland.
 
 ## Design
 

@@ -27,7 +27,22 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 /** Non-global twin of EMAIL_RE: `.test()` on a /g regex carries lastIndex between calls. */
 const HAS_EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const URL_RE = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\b|\bhttps?:\/\/[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\b/gi;
-const PHONE_RE = /\+?\d[\d\s().\-–—]{5,}\d/g;
+// The optional leading '(' keeps '(6019) 7314 959' intact. Without it the match
+// starts at the first digit and the number is shown back as '6019) 7314 959',
+// which reads as damage even though the digits are right.
+const PHONE_RE = /\+?\(?\d[\d\s().\-–—]{5,}\d/g;
+
+/**
+ * Tax, registration and licence identifiers.
+ *
+ * These are the most dangerous digit strings on a business card: they sit
+ * right beside the real phone numbers, they are the same length, and a
+ * company registration number resolves into a perfectly plausible mobile. A
+ * Malaysian tax number normalised to a Singapore mobile and won the WhatsApp
+ * link outright, because nothing marked it as not-a-phone.
+ */
+const IDENTIFIER_HINT =
+  /\b(?:tin|gst|sst|vat|uen|roc|brn|abn|acn|npwp|ein|nric|passport|invoice|licen[cs]e|permit|tax)\b|\b(?:reg(?:istration)?|co|company|business)\.?\s*(?:no|num|number|reg)\b|\bno\.\s*:/i;
 
 const KNOWN_TLDS = [
   'com', 'net', 'org', 'io', 'co', 'ai', 'app', 'dev', 'biz', 'info', 'me', 'tech', 'sg', 'my', 'id',
@@ -56,6 +71,24 @@ const COMPANY_SUFFIXES = [
   'kk', 'k.k', 'pt', 'cv', 'tbk',
 ];
 const COMPANY_RE = new RegExp(`(^|[\\s,.])(${COMPANY_SUFFIXES.map((s) => s.replace(/\./g, '\\.')).join('|')})\\b\\.?\\s*$|\\b(technologies|solutions|systems|consulting|holdings|ventures|partners|group|labs|industries)\\b`, 'i');
+
+/**
+ * 'Eu Yan Sang (1959) Sdn. Bhd. 195901000194 (3544-P)' -> 'Eu Yan Sang (1959) Sdn. Bhd.'
+ *
+ * Registration numbers are printed inline after the company name throughout
+ * Malaysia and Singapore. COMPANY_RE anchors its suffix at end of line, so
+ * those trailing digits hid the company completely and the name fell back to
+ * the website domain — 'Euyansang' instead of 'Eu Yan Sang'.
+ *
+ * Only used for the company test. Applying it generally would turn
+ * 'Singapore 079120' into a plausible-looking company name.
+ */
+const REGISTRATION_TAIL_RE = /[\s,]+\d[\d\s().\-–—/]*(?:\([\dA-Za-z-]+\))?\s*$/;
+
+function stripRegistrationTail(line: string): string {
+  const stripped = line.replace(REGISTRATION_TAIL_RE, '').trim();
+  return stripped.length >= 3 ? stripped : line;
+}
 
 const ADDRESS_RE = /\b(road|rd\.?|street|st\.?|avenue|ave\.?|lane|drive|dr\.?|boulevard|blvd\.?|highway|jalan|jln|lorong|soi|floor|fl\.?|level|lvl|unit|suite|ste\.?|block|blk|tower|building|bldg|plaza|centre|center|park|estate|p\.?o\.? box|postal|zip)\b|#\d|\b\d{5,6}\b/i;
 
@@ -328,6 +361,12 @@ export function parseCard(rawText: string): ParsedCard {
   const phones: PhoneCandidate[] = [];
   const phoneLineIndexes = new Set<number>();
   lines.forEach((line, index) => {
+    // A line announcing an identifier holds no phone number, so take the whole
+    // line out rather than trying to tell the digits apart afterwards.
+    if (IDENTIFIER_HINT.test(line)) {
+      phoneLineIndexes.add(index);
+      return;
+    }
     const withoutEmails = line.replace(EMAIL_RE, ' ').replace(URL_RE, ' ');
     const matches = withoutEmails.match(PHONE_RE) ?? [];
     for (const match of matches) {
@@ -383,7 +422,7 @@ export function parseCard(rawText: string): ParsedCard {
       titleCandidates.push({ line: titleLine, index, score });
     }
 
-    const companyLine = rescuePhrase(line, COMPANY_RE);
+    const companyLine = stripRegistrationTail(rescuePhrase(line, COMPANY_RE));
     if (!isStructural && COMPANY_RE.test(companyLine) && !ADDRESS_RE.test(companyLine) && companyLine.length <= 60) {
       let score = 10 - index;
       if (!ROLE_RE.test(companyLine)) score += 4;

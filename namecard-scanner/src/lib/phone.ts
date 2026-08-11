@@ -7,6 +7,22 @@ export interface PhoneCandidate {
   kind: PhoneKind;
 }
 
+/**
+ * How much the country code can be trusted.
+ *
+ * - `exact`    — the card said so: a '+', a bracketed country code, a trunk
+ *                prefix, or a length that only parses one way.
+ * - `inferred` — one reading was clearly better than another, but it was a
+ *                choice.
+ * - `guess`    — nothing matched; the home market was assumed to avoid
+ *                refusing a number the user can see is fine.
+ *
+ * This exists because a `guess` is often a tax or registration number that
+ * happens to be phone-shaped, and without a confidence level such a number
+ * ranks identically to a real one.
+ */
+export type PhoneConfidence = 'exact' | 'inferred' | 'guess';
+
 export interface NormalizedPhone {
   ok: boolean;
   /** '+6591234567' — what we show the user. */
@@ -15,6 +31,7 @@ export interface NormalizedPhone {
   waDigits: string | null;
   national: string | null;
   countryIso: string | null;
+  confidence: PhoneConfidence;
   /** Set when we had to guess; surfaced in the UI so the user can correct it. */
   warning?: string;
   problem?: string;
@@ -33,10 +50,16 @@ function startsWithAny(value: string, prefixes: readonly string[] | undefined): 
 }
 
 function fail(problem: string): NormalizedPhone {
-  return { ok: false, e164: null, waDigits: null, national: null, countryIso: null, problem };
+  return { ok: false, e164: null, waDigits: null, national: null, countryIso: null, confidence: 'guess', problem };
 }
 
-function succeed(dial: string, national: string, iso: string | null, warning?: string): NormalizedPhone {
+function succeed(
+  dial: string,
+  national: string,
+  iso: string | null,
+  confidence: PhoneConfidence,
+  warning?: string,
+): NormalizedPhone {
   const full = dial + national;
   if (full.length < MIN_E164_DIGITS || full.length > MAX_E164_DIGITS) {
     return fail(`"+${full}" is ${full.length} digits — that is not a valid phone number.`);
@@ -47,12 +70,16 @@ function succeed(dial: string, national: string, iso: string | null, warning?: s
     waDigits: full,
     national,
     countryIso: iso,
+    confidence,
     ...(warning ? { warning } : {}),
   };
 }
 
-/** Splits an already-international digit string into country code + rest. */
-function splitInternational(digits: string): { country: Country | null; national: string } {
+/**
+ * The country whose dial code the digits start with *and* whose national
+ * number length they then satisfy. Null when no country fits both.
+ */
+function strictInternational(digits: string): { country: Country; national: string } | null {
   for (const country of COUNTRIES_BY_DIAL_LENGTH) {
     if (!digits.startsWith(country.dial)) continue;
     const national = digits.slice(country.dial.length);
@@ -60,6 +87,13 @@ function splitInternational(digits: string): { country: Country | null; national
     // for that country; otherwise keep looking at shorter dial codes.
     if (country.nsn.includes(national.length)) return { country, national };
   }
+  return null;
+}
+
+/** Splits an already-international digit string into country code + rest. */
+function splitInternational(digits: string): { country: Country | null; national: string } {
+  const strict = strictInternational(digits);
+  if (strict) return strict;
   // No confident match: fall back to the first prefix match so we still produce
   // a usable +E.164 rather than refusing a number the user can see is fine.
   for (const country of COUNTRIES_BY_DIAL_LENGTH) {
@@ -68,6 +102,23 @@ function splitInternational(digits: string): { country: Country | null; national
     }
   }
   return { country: null, national: digits };
+}
+
+/**
+ * '(6019) 7314 959' — a bracketed leading group that already carries the
+ * country code, which Malaysian and Singaporean cards print constantly. There
+ * is no '+', so nothing else here treats it as international, and the digits
+ * run together into a length that matches no country.
+ *
+ * Only a strict match counts. '(415) 555-0123' would otherwise be read as
+ * Switzerland ('41') plus a leftover, and a US card would quietly dial Zurich.
+ */
+function fromBracketedCountryCode(raw: string): NormalizedPhone | null {
+  const bracketed = /\((\+?\d{2,6})\)([\d\s().\-–—]*)/.exec(raw);
+  if (!bracketed) return null;
+  const strict = strictInternational(digitsOf(bracketed[1]! + bracketed[2]!));
+  if (!strict) return null;
+  return succeed(strict.country.dial, strict.national, strict.country.iso, 'exact');
 }
 
 /**
@@ -94,10 +145,14 @@ export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone
     const { country, national } = splitInternational(digits);
     if (!country) {
       // Unknown country code, but the shape is valid — pass it through.
-      return succeed('', digits, null, 'Unrecognised country code — double-check this one.');
+      return succeed('', digits, null, 'inferred', 'Unrecognised country code — double-check this one.');
     }
-    return succeed(country.dial, national, country.iso);
+    return succeed(country.dial, national, country.iso, 'exact');
   }
+
+  // --- Country code in brackets: '(6019) 7314 959'. ---
+  const bracketed = fromBracketedCountryCode(trimmed);
+  if (bracketed) return bracketed;
 
   // --- Written in local format: apply the home market's rules. ---
   const trunk = home.trunk;
@@ -105,7 +160,7 @@ export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone
 
   // 1. Trunk prefix is unambiguous — an international number never carries one.
   if (afterTrunk !== null && home.nsn.includes(afterTrunk.length)) {
-    return succeed(home.dial, afterTrunk, home.iso);
+    return succeed(home.dial, afterTrunk, home.iso, 'exact');
   }
 
   const dialStripped = bare.startsWith(home.dial) ? bare.slice(home.dial.length) : null;
@@ -118,12 +173,18 @@ export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone
     const preferDialStripped =
       !startsWithAny(bare, home.mobilePrefixes) && startsWithAny(dialStripped, home.mobilePrefixes);
     return preferDialStripped
-      ? succeed(home.dial, dialStripped, home.iso, `Read as +${home.dial} ${dialStripped} — confirm this is right.`)
-      : succeed(home.dial, bare, home.iso);
+      ? succeed(
+          home.dial,
+          dialStripped,
+          home.iso,
+          'inferred',
+          `Read as +${home.dial} ${dialStripped} — confirm this is right.`,
+        )
+      : succeed(home.dial, bare, home.iso, 'exact');
   }
 
-  if (bareValid) return succeed(home.dial, bare, home.iso);
-  if (dialStrippedValid) return succeed(home.dial, dialStripped, home.iso);
+  if (bareValid) return succeed(home.dial, bare, home.iso, 'exact');
+  if (dialStrippedValid) return succeed(home.dial, dialStripped, home.iso, 'exact');
 
   // 3. Nothing matched the home market exactly. It may be a foreign number
   //    printed without a '+', which is common on regional cards.
@@ -133,6 +194,7 @@ export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone
       foreign.country.dial,
       foreign.national,
       foreign.country.iso,
+      'inferred',
       `Read as a ${foreign.country.name} number — confirm the country code.`,
     );
   }
@@ -144,12 +206,13 @@ export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone
       home.dial,
       withoutTrunk,
       home.iso,
+      'guess',
       `Unusual length for ${home.name} — check the country code before sending.`,
     );
   }
 
   if (bare.length >= MIN_E164_DIGITS && bare.length <= MAX_E164_DIGITS) {
-    return succeed('', bare, null, 'Could not work out the country code — check it before sending.');
+    return succeed('', bare, null, 'guess', 'Could not work out the country code — check it before sending.');
   }
 
   return fail(`"${trimmed}" does not look like a phone number.`);
@@ -212,6 +275,7 @@ export function classifyPhoneLine(line: string): PhoneKind {
 }
 
 const KIND_RANK: Record<PhoneKind, number> = { mobile: 0, unknown: 1, office: 2, fax: 99 };
+const CONFIDENCE_RANK: Record<PhoneConfidence, number> = { exact: 0, inferred: 1, guess: 2 };
 
 /**
  * Picks the number most likely to be on WhatsApp. Mobile beats office, and a
@@ -227,18 +291,24 @@ export function pickBestPhone(candidates: readonly PhoneCandidate[], defaultIso:
     const normalized = normalizePhone(candidate.raw, defaultIso);
     let rank = KIND_RANK[candidate.kind];
     // An unlabelled number that starts with a mobile prefix is almost certainly
-    // a mobile, so treat it as well as an explicitly labelled one.
+    // a mobile, so treat it as well as an explicitly labelled one — but only
+    // when the country code is not itself a guess. A tax or registration
+    // number assumed into the home market lands on a "mobile" prefix by pure
+    // coincidence, and this boost used to hand it the win.
     if (
       candidate.kind === 'unknown' &&
+      normalized.confidence !== 'guess' &&
       normalized.countryIso === home.iso &&
       startsWithAny(normalized.national ?? '', home.mobilePrefixes)
     ) {
       rank = KIND_RANK.mobile + 0.5;
     }
-    return { candidate, rank, index };
+    return { candidate, rank, confidence: CONFIDENCE_RANK[normalized.confidence], index };
   });
 
-  scored.sort((a, b) => a.rank - b.rank || a.index - b.index);
+  // Confidence breaks ties within a label. Between two unlabelled numbers, the
+  // one whose country code the card actually stated beats one we assumed.
+  scored.sort((a, b) => a.rank - b.rank || a.confidence - b.confidence || a.index - b.index);
   return scored[0]!.candidate;
 }
 
