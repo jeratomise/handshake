@@ -90,6 +90,18 @@ function strictInternational(digits: string): { country: Country; national: stri
   return null;
 }
 
+/**
+ * True when the digits are a valid international number for *some* country —
+ * dial code and national-number length both satisfied.
+ *
+ * Used to protect the shape-based identifier rules in parseCard: a digit run
+ * that really is somebody's phone number must never be discarded, however much
+ * it happens to resemble a registration number.
+ */
+export function hasStrictCountryMatch(digits: string): boolean {
+  return strictInternational(digits) !== null;
+}
+
 /** Splits an already-international digit string into country code + rest. */
 function splitInternational(digits: string): { country: Country | null; national: string } {
   const strict = strictInternational(digits);

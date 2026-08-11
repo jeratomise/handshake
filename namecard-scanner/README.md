@@ -188,7 +188,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 114 unit tests — parsing, phone normalisation, drafting
+npm test               # 122 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 29 browser tests against the real production build
 ```
@@ -318,6 +318,15 @@ outranks a stated one. Lines carrying a tax or registration marker are dropped
 before phone extraction entirely. Bracketed country codes are read, but only on
 a strict length match: `(415) 555-0123` opens with `41`, and without that check
 a New York card would dial Switzerland.
+
+The nastier version has no keyword at all. Malaysia and Singapore print a
+12-digit registration number on almost every card, and its first four digits
+are the year of incorporation: `195901000194`. With no `+` and no country whose
+length rules it fits, it fell into the "assume the home market" fallback and
+was offered to the user as `+60 1959 0100 0194`, green "read from the card" dot
+and all. It is now rejected on shape — but only when no country's dial code and
+number length fit it, so an Egyptian mobile written bare as `201234567890`
+keeps its place despite also opening with a year.
 
 ## Design
 
