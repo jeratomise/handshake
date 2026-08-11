@@ -109,6 +109,49 @@ describe('identifiers are not phone numbers', () => {
   });
 });
 
+describe('unlabelled registration numbers are not phone numbers', () => {
+  // What the beta tester actually hit. OCR put the registration number on its
+  // own line, and with no keyword beside it nothing marked it as not-a-phone:
+  // the confirm screen offered '+60 1959 0100 0194' with a green "read from
+  // the card" dot, and the real mobile was nowhere.
+  it('rejects a bare 12-digit registration number', () => {
+    const card = parseCard('Eu Yan Sang (1959) Sdn. Bhd.\n195901000194\nwww.euyansang.com.my');
+    expect(card.phones).toEqual([]);
+  });
+
+  it('rejects a line carrying the bracketed company-number suffix', () => {
+    expect(parseCard('Acme Holdings Sdn. Bhd.\n195901000194 (3544-P)').phones).toEqual([]);
+  });
+
+  it('keeps a real number that happens to open with a year', () => {
+    // +20 12 3456 7890 is an Egyptian mobile written without its plus. Twelve
+    // digits opening with '2012' — but it is a valid number for a real country,
+    // so the shape rule must not touch it.
+    const card = parseCard('Omar Farouk\n201234567890');
+    expect(card.phones).toHaveLength(1);
+    expect(normalizePhone(card.phones[0]!.raw, 'EG').e164).toBe('+201234567890');
+  });
+
+  it('keeps ordinary long numbers that are not year-prefixed', () => {
+    const card = parseCard('Budi Santoso\n628123456789');
+    expect(card.phones).toHaveLength(1);
+  });
+});
+
+describe('a bilingual name is read through the misread half', () => {
+  it('keeps the Latin name when the CJK beside it comes back as debris', () => {
+    // 'Ng Beei Ching 黄美清' as an English-only model returns it.
+    const card = parseCard('Ng Beei Ching Xi3£i8\nAssistant Outlet Supervisor');
+    expect(card.name).toBe('Ng Beei Ching');
+  });
+
+  it('does not turn an address into a person', () => {
+    // Only the tail is ever dropped, never the head. Were debris stripped from
+    // both ends, this line would surrender 'Sunway Pyramid' as a person.
+    expect(parseCard('Lot LG2. 129A-1, Sunway Pyramid,').name).toBe('');
+  });
+});
+
 describe('a guessed country code never outranks a stated one', () => {
   it('prefers the number whose country code the card actually printed', () => {
     const candidates = [

@@ -1,4 +1,4 @@
-import { classifyPhoneLine, type PhoneCandidate } from './phone';
+import { classifyPhoneLine, hasStrictCountryMatch, type PhoneCandidate } from './phone';
 
 export interface ParsedCard {
   name: string;
@@ -43,6 +43,35 @@ const PHONE_RE = /\+?\(?\d[\d\s().\-–—]{5,}\d/g;
  */
 const IDENTIFIER_HINT =
   /\b(?:tin|gst|sst|vat|uen|roc|brn|abn|acn|npwp|ein|nric|passport|invoice|licen[cs]e|permit|tax)\b|\b(?:reg(?:istration)?|co|company|business)\.?\s*(?:no|num|number|reg)\b|\bno\.\s*:/i;
+
+/**
+ * The old-style Malaysian company number suffix: '(3544-P)'. It carries no
+ * keyword, so only its shape gives it away.
+ */
+const REGISTRATION_SUFFIX_RE = /\(\s*\d{3,8}\s*-\s*[A-Za-z]\s*\)/;
+
+/**
+ * A business registration number printed bare, with no label at all.
+ *
+ * Malaysia and Singapore put a 12-digit registration number on almost every
+ * card, and its first four digits are the year of incorporation —
+ * '195901000194' for a company registered in 1959. That is not a phone number
+ * anywhere on earth, but with no '+' and no country whose length rules it
+ * fits, it fell into the "assume the home market" fallback and was presented
+ * to the user as +60 1959 0100 0194, complete with a green "read from the
+ * card" dot.
+ *
+ * Gated on there being no valid international reading, so a real number is
+ * never discarded for resembling one. An Egyptian mobile written bare as
+ * '201234567890' also opens with a year, but it is a genuine +20 number and
+ * keeps its place.
+ */
+function looksLikeRegistrationNumber(digits: string): boolean {
+  if (digits.length !== 12) return false;
+  if (hasStrictCountryMatch(digits)) return false;
+  const year = Number(digits.slice(0, 4));
+  return year >= 1900 && year <= 2099;
+}
 
 const KNOWN_TLDS = [
   'com', 'net', 'org', 'io', 'co', 'ai', 'app', 'dev', 'biz', 'info', 'me', 'tech', 'sg', 'my', 'id',
@@ -301,19 +330,48 @@ function companyFromDomain(domain: string): string {
     .join(' ');
 }
 
+/** Letters, maybe a hyphen or an apostrophe — what a name word looks like. */
+const NAME_WORD_RE = /^[A-Za-z][A-Za-z'’\-.]*$/;
+
+/**
+ * 'Ng Beei Ching 黄美清' -> 'Ng Beei Ching'
+ *
+ * Bilingual cards print the CJK name beside the Latin one, and an English-only
+ * model returns a plausible ASCII smear for it — 'Ng Beei Ching Xi3£i8'. The
+ * whole line then carries a digit, which disqualified it, and the card came
+ * back with no name at all.
+ *
+ * There is no keyword to anchor on the way a title or a company has, so the
+ * rule is positional: keep the run of name-shaped words that opens the line
+ * and drop the tail. Deliberately trailing-only — stripping both ends would
+ * let 'Lot LG2. 129A-1, Sunway Pyramid' surrender 'Sunway Pyramid' as a person.
+ */
+function nameCore(line: string): string {
+  const stripped = stripNameDecorations(line);
+  const words = stripped.split(/\s+/).filter(Boolean);
+  let end = words.length;
+  while (end > 0 && !NAME_WORD_RE.test(words[end - 1]!)) end -= 1;
+  if (end < 2) return stripped;
+  return words.slice(0, end).join(' ');
+}
+
 function looksLikeName(line: string): boolean {
-  if (countDigits(line) > 0) return false;
   if (line.includes('@')) return false;
   if (line.length > 42) return false;
   if (ADDRESS_RE.test(line)) return false;
   if (COMPANY_RE.test(line)) return false;
   if (ROLE_RE.test(line)) return false;
 
-  const words = stripNameDecorations(line).split(/\s+/).filter(Boolean);
+  // Digits still disqualify, but only inside the part being kept. Testing the
+  // raw line would throw away every bilingual name on the grounds of its
+  // misread other half.
+  const core = nameCore(line);
+  if (countDigits(core) > 0) return false;
+
+  const words = core.split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 4) return false;
 
-  // Every word should read like a name: letters, maybe a hyphen or apostrophe.
-  return words.every((word) => /^[A-Za-z][A-Za-z'’\-.]*$/.test(word));
+  return words.every((word) => NAME_WORD_RE.test(word));
 }
 
 interface Scored {
@@ -363,15 +421,16 @@ export function parseCard(rawText: string): ParsedCard {
   lines.forEach((line, index) => {
     // A line announcing an identifier holds no phone number, so take the whole
     // line out rather than trying to tell the digits apart afterwards.
-    if (IDENTIFIER_HINT.test(line)) {
-      phoneLineIndexes.add(index);
-      return;
-    }
+    // Skip phone extraction only — deliberately NOT marked structural. That
+    // set also removes a line from name/title/company, and the company name
+    // shares its line with the registration number that triggers this.
+    if (IDENTIFIER_HINT.test(line) || REGISTRATION_SUFFIX_RE.test(line)) return;
     const withoutEmails = line.replace(EMAIL_RE, ' ').replace(URL_RE, ' ');
     const matches = withoutEmails.match(PHONE_RE) ?? [];
     for (const match of matches) {
       const digits = countDigits(match);
       if (digits < 7 || digits > 15) continue;
+      if (looksLikeRegistrationNumber(match.replace(/\D/g, ''))) continue;
       phones.push({ raw: match.trim(), kind: classifyPhoneLine(line) });
       phoneLineIndexes.add(index);
     }
@@ -404,7 +463,7 @@ export function parseCard(rawText: string): ParsedCard {
       const overlap = words.filter((w) => emailTokens.includes(w)).length;
       score += overlap * 7;
       if (line === line.toUpperCase() && line.length > 3) score += 2;
-      nameCandidates.push({ line: titleCase(stripNameDecorations(line)), index, score });
+      nameCandidates.push({ line: titleCase(nameCore(line)), index, score });
     }
 
     // Rescue first: a bilingual line reads as debris plus the phrase we want,

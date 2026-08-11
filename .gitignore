@@ -1,0 +1,3 @@
+# Tooling run from the repository root (rather than from namecard-scanner/)
+# drops caches here. Nothing at this level is part of the project.
+node_modules/
