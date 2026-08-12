@@ -81,3 +81,37 @@ export function guessCountryIso(locales: readonly string[] = []): string {
   }
   return DEFAULT_COUNTRY_ISO;
 }
+
+/**
+ * Country-code top-level domains, for reading the market off an email address.
+ *
+ * A card that prints '090-1234-5678' and nothing else is unreadable on its own
+ * — the number is only meaningful once you know it is Japanese. The address
+ * usually says so, but the email always does: k.nakamura@sakura-logistics.co.jp
+ * ends in .jp.
+ *
+ * Only the last label counts, so '.co.jp' resolves on 'jp' rather than 'co'.
+ * Generic-use ccTLDs (.io, .ai, .me, .co) are absent from COUNTRIES, so a
+ * startup on a .io domain matches nothing and falls through, which is right.
+ */
+const TLD_TO_ISO: Record<string, string> = {
+  sg: 'SG', my: 'MY', id: 'ID', th: 'TH', vn: 'VN', ph: 'PH', hk: 'HK', tw: 'TW',
+  cn: 'CN', jp: 'JP', kr: 'KR', in: 'IN', ae: 'AE', sa: 'SA', au: 'AU', nz: 'NZ',
+  uk: 'GB', gb: 'GB', ie: 'IE', de: 'DE', fr: 'FR', nl: 'NL', es: 'ES', it: 'IT',
+  ch: 'CH', se: 'SE', pl: 'PL', tr: 'TR', za: 'ZA', ng: 'NG', ke: 'KE', eg: 'EG',
+  br: 'BR', mx: 'MX', ar: 'AR', us: 'US', ca: 'CA',
+};
+
+/** 'k.nakamura@sakura-logistics.co.jp' -> 'JP'. Null when the TLD says nothing. */
+export function countryFromTld(emailOrDomain: string): string | null {
+  const host = (emailOrDomain.split('@').pop() ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    ?.replace(/\.$/, '');
+  if (!host || !host.includes('.')) return null;
+  const tld = host.split('.').pop() ?? '';
+  return TLD_TO_ISO[tld] ?? null;
+}

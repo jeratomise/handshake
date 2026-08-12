@@ -253,7 +253,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 132 unit tests — parsing, phone normalisation, drafting
+npm test               # 153 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 33 browser tests against the real production build
 ```
@@ -278,16 +278,18 @@ node e2e/make-fixtures.mjs           # render the cards, once
 node e2e/ocr-bench.mjs               # score them
 ```
 
-Twelve cards, each a real failure mode rather than an arbitrary distortion:
+Fourteen cards, each a real failure mode rather than an arbitrary distortion:
 low contrast, rotated, light-on-dark, small type, serif, uneven lighting, four
 photo-like variants (blur, perspective, dim, glare — rendered as low-quality
-JPEGs so the compression artefacts are genuine), and a bilingual
-Chinese/English card. Fields are weighted by what actually breaks a follow-up:
-the phone number counts triple, the name and greeting double.
+JPEGs so the compression artefacts are genuine), and three bilingual cards —
+Chinese, Japanese and Korean. Fields are weighted by what actually breaks a
+follow-up: the phone number counts triple, the name and greeting double, and
+it is scored on the *resolved* E.164 rather than the raw field, because the
+country code is the whole point.
 
-Current: **120/120**. Worth knowing that the crisp variants are all trivially
-passed — the benchmark's value is as a regression guard and as the thing that
-found the bilingual bug below.
+Current: **140/140**. The crisp variants are all trivially passed — the
+benchmark's value is as a regression guard, and as the thing that found every
+bug described below.
 
 ## Sales collateral
 
@@ -322,6 +324,52 @@ The generative model only supplies the photograph in the band, where being
 approximately right is the whole job. The layout also asserts it fits — blocks
 are `flex: none`, so an over-full poster fails the build instead of silently
 squashing the photo band to a sliver.
+
+## Japanese and Korean cards
+
+The engine ships `eng.traineddata` only, so kana, kanji and hangul come back as
+plausible-looking ASCII rubbish. The benchmark's JP and KR fixtures answer the
+question that raises: **how much of the card survives that?**
+
+Nearly all of it, as it turns out — both score 10/10 — but only after four
+faults that the cards exposed one at a time. None of them needed another
+language model, which matters: `jpn` and `kor` are roughly 15 MB each, and this
+app is meant to open on one bar of signal.
+
+**The country code was invented.** The single worst of the four. Japanese and
+Korean cards print the mobile in national format with no country code anywhere
+— `090-1234-5678` — because everyone reading the card is local. Resolved
+against a Singaporean BDE's home market that becomes `+65 090 1234 5678`, a
+number belonging to nobody, offered with only a mild warning. The card does say
+where it is from, in the one place that is always machine-readable: the email's
+country TLD. `chooseMarket` now takes that hint — but only when the home market
+produced a `guess`, so a Singaporean working for a Japanese employer still has
+their local mobile read as Singaporean.
+
+**`Park` was in the address word list.** `looksLikeName` reused `ADDRESS_RE`,
+which lists `park`, `lane`, `drive` and `hill` — as in "business park". So
+`PARK JI HOON` was rejected as an address, silently failing one of the three
+most common surnames in Korea, and the name fell back to the email. Names now
+use a narrower list containing only words that are never a surname.
+
+**`k.nakamura@…` greeted him as "Nakamura".** The email local part is used to
+work out which half of a name is personal, which is right for `weiming.tan` but
+exactly backwards for an initial followed by a family name.
+
+**There was nothing to split the debris on.** `rescuePhrase` cut bilingual
+lines on `·` or `|`, but JP and KR cards run the two scripts together with only
+a space: `영업팀장 Sales Team Manager` reads as `24 2{El Xt Sales Team Manager`.
+With no separator the split gave up and the stray digits then disqualified the
+whole line, so the Korean job title was simply lost. It now walks in from the
+left and takes the first suffix that is clean and still carries the anchor —
+only ever dropping a prefix, since the anchor word is what identifies the line
+and everything after it belongs.
+
+What is *not* fixed: a short debris token immediately before the anchor
+survives, so the Korean title reads `Xt Sales Team Manager`. Trimming it would
+mean dropping any two- or three-letter prefix, which would also eat the `IT` in
+`IT Sales Manager`. The AI re-read handles these cards properly — Gemini reads
+both scripts — and that is the escape hatch it exists for.
 
 ## How it is put together
 

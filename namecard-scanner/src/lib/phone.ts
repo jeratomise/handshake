@@ -329,3 +329,35 @@ export function whatsappUrl(e164: string, message: string): string {
   const digits = e164.replace(/\D/g, '');
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Decides which market a card's numbers should be resolved against.
+ *
+ * The user's home market is the right default and is trusted unless it cannot
+ * explain the number. A Japanese card printing '090-1234-5678' resolved
+ * against Singapore becomes +65 090 1234 5678 — a number belonging to nobody,
+ * offered with only a mild warning.
+ *
+ * The hint (usually the email's country TLD) takes over only when the home
+ * market produced a guess, so it can rescue a foreign card without breaking
+ * the ordinary case: a Singaporean whose employer is Japanese still has their
+ * local mobile read as Singaporean, because that reading is exact.
+ */
+export function chooseMarket(
+  candidates: readonly PhoneCandidate[],
+  homeIso: string,
+  hintIso: string | null,
+): string {
+  if (!hintIso || hintIso === homeIso) return homeIso;
+
+  const best = pickBestPhone(candidates, homeIso);
+  if (!best) return hintIso;
+
+  const athome = normalizePhone(best.raw, homeIso);
+  if (athome.ok && athome.confidence !== 'guess') return homeIso;
+
+  // Only switch if the hint actually does better; a second guess is no
+  // improvement on the first.
+  const athint = normalizePhone(best.raw, hintIso);
+  return athint.ok && athint.confidence !== 'guess' ? hintIso : homeIso;
+}

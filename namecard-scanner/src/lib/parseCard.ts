@@ -121,6 +121,17 @@ function stripRegistrationTail(line: string): string {
 
 const ADDRESS_RE = /\b(road|rd\.?|street|st\.?|avenue|ave\.?|lane|drive|dr\.?|boulevard|blvd\.?|highway|jalan|jln|lorong|soi|floor|fl\.?|level|lvl|unit|suite|ste\.?|block|blk|tower|building|bldg|plaza|centre|center|park|estate|p\.?o\.? box|postal|zip)\b|#\d|\b\d{5,6}\b/i;
 
+/**
+ * The address test used when deciding whether a line is a person's name.
+ *
+ * ADDRESS_RE cannot be reused here: it lists 'park', 'lane', 'drive', 'hill'
+ * and 'field', every one of which is also a surname. 'PARK JI HOON' was
+ * rejected as an address, which quietly failed one of the three most common
+ * surnames in Korea. Only words that are never a name are disqualifying.
+ */
+const NAME_ADDRESS_RE =
+  /\b(road|rd\.?|street|avenue|ave\.?|boulevard|blvd\.?|highway|jalan|jln|lorong|soi|floor|suite|ste\.?|block|blk|tower|building|bldg|plaza|p\.?o\.? box|postal|zip)\b|#\d|\b\d{5,6}\b/i;
+
 const NOISE_RE = /^[^A-Za-z0-9]+$/;
 
 /**
@@ -157,16 +168,44 @@ export function rescuePhrase(line: string, anchor: RegExp): string {
     .split(SEGMENT_SPLIT)
     .map((segment) => segment.replace(/[^\x20-\x7E]+/g, ' ').replace(/\s+/g, ' ').trim())
     .filter(Boolean);
-  if (segments.length < 2) return line;
 
   // Only accept a segment that is cleaner than what we started with; otherwise
   // splitting has bought nothing and risks losing part of a real name.
-  const better = segments.filter((segment) => anchor.test(segment) && !looksMisread(segment));
-  if (better.length === 0) return line;
+  const better =
+    segments.length < 2 ? [] : segments.filter((segment) => anchor.test(segment) && !looksMisread(segment));
+  if (better.length > 0) {
+    const letterRatio = (s: string) => (s.match(/[A-Za-z]/g) ?? []).length / Math.max(1, s.length);
+    better.sort((a, b) => letterRatio(b) - letterRatio(a));
+    return better[0]!;
+  }
 
-  const letterRatio = (s: string) => (s.match(/[A-Za-z]/g) ?? []).length / Math.max(1, s.length);
-  better.sort((a, b) => letterRatio(b) - letterRatio(a));
-  return better[0]!;
+  return firstCleanAnchoredSuffix(line, anchor) ?? line;
+}
+
+/**
+ * The debris and the phrase with no separator between them.
+ *
+ * Japanese and Korean cards run the two scripts together with nothing but a
+ * space: '영업팀장 Sales Team Manager' comes back as
+ * '24 2{El Xt Sales Team Manager', and 'さくら物流株式会社 SAKURA LOGISTICS CO., LTD.'
+ * as 'x < Lif 4£3t SAKURA LOGISTICS CO., LTD.'. There is no '·' or '|' to cut
+ * on, so the split above finds a single segment and gives up, and the stray
+ * digits then disqualify the line entirely — the Korean job title was simply
+ * lost.
+ *
+ * So walk in from the left and take the first suffix that is both clean and
+ * still carries the anchor. Only ever drops a prefix, never a suffix: the
+ * anchor word is what identifies the line, and everything after it belongs.
+ */
+function firstCleanAnchoredSuffix(line: string, anchor: RegExp): string | null {
+  const words = line.split(/\s+/).filter(Boolean);
+  for (let start = 1; start < words.length; start++) {
+    const candidate = words.slice(start).join(' ');
+    if (looksMisread(candidate)) continue;
+    if (!anchor.test(candidate)) return null;
+    return candidate;
+  }
+  return null;
 }
 
 /** Collapses OCR whitespace noise and drops lines that carry no information. */
@@ -291,16 +330,32 @@ export function greetingName(fullName: string, email = ''): string {
   const emailTokens = email ? tokensFromEmailLocal(email) : [];
   const lead = emailTokens[0];
   if (lead) {
-    // Whichever part of the name the email leads with is the personal name.
-    if (lead === normalizeToken(first)) return first;
-    if (lead === normalizeToken(rest.join(''))) return rest.join(' ');
-    if (lead === normalizeToken(last)) return last;
-    if (lead === normalizeToken(allButLast.join(''))) return allButLast.join(' ');
+    // 'k.nakamura@…' is an initial and a SURNAME, not a personal name. Read the
+    // usual way round it says the greeting is "Nakamura", which is how a
+    // Japanese contact gets addressed by their family name in an opening line.
+    // The initial is the given name, so whatever the token matches is the part
+    // to drop.
+    if (initialThenSurname(email)) {
+      if (lead === normalizeToken(last)) return allButLast.join(' ');
+      if (lead === normalizeToken(first)) return rest.join(' ');
+    } else {
+      // Whichever part of the name the email leads with is the personal name.
+      if (lead === normalizeToken(first)) return first;
+      if (lead === normalizeToken(rest.join(''))) return rest.join(' ');
+      if (lead === normalizeToken(last)) return last;
+      if (lead === normalizeToken(allButLast.join(''))) return allButLast.join(' ');
+    }
   }
 
   if (VIETNAMESE_SURNAMES.has(normalizeToken(first))) return last;
   if (SURNAME_FIRST.has(normalizeToken(first))) return rest.join(' ');
   return first;
+}
+
+/** 'k.nakamura@…', 'j-smith@…' — a lone initial followed by the family name. */
+function initialThenSurname(email: string): boolean {
+  const local = email.split('@')[0] ?? '';
+  return /^[A-Za-z][._-][A-Za-z]{2,}$/.test(local);
 }
 
 function tokensFromEmailLocal(email: string): string[] {
@@ -358,7 +413,7 @@ function nameCore(line: string): string {
 function looksLikeName(line: string): boolean {
   if (line.includes('@')) return false;
   if (line.length > 42) return false;
-  if (ADDRESS_RE.test(line)) return false;
+  if (NAME_ADDRESS_RE.test(line)) return false;
   if (COMPANY_RE.test(line)) return false;
   if (ROLE_RE.test(line)) return false;
 
