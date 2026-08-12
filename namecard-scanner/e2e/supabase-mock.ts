@@ -20,6 +20,11 @@ export interface MockState {
   otpSent: string[];
   profile: Record<string, unknown> | null;
   followUps: Record<string, unknown>[];
+  /** Runtime settings the app reads at boot. Null means "no row", the default. */
+  settings: Record<string, unknown> | null;
+  /** What the ai-read-card edge function should answer, and how many times it was asked. */
+  aiRead: { status: number; body: unknown } | null;
+  aiReadCalls: { imageBytes: number }[];
 }
 
 function session() {
@@ -58,7 +63,7 @@ const json = (route: Route, body: unknown, status = 200) =>
   });
 
 export async function mockSupabase(page: Page): Promise<MockState> {
-  const state: MockState = { otpSent: [], profile: null, followUps: [] };
+  const state: MockState = { otpSent: [], profile: null, followUps: [], settings: null, aiRead: null, aiReadCalls: [] };
 
   await page.route(`${STUB_HOST}/**`, async (route) => {
     const request = route.request();
@@ -114,6 +119,23 @@ export async function mockSupabase(page: Page): Promise<MockState> {
         state.profile = { ...(state.profile ?? {}), ...(Array.isArray(body) ? body[0] : body) };
         return json(route, [state.profile], 201);
       }
+    }
+
+    if (path === '/rest/v1/app_settings') {
+      return json(route, state.settings ? [state.settings] : []);
+    }
+
+    // The AI re-read proxy. Kept a stub on purpose: the suite must never reach
+    // a real provider, and what is being tested is the app's behaviour around
+    // the answer, not the model's ability to read a card.
+    if (path === '/functions/v1/ai-read-card') {
+      if (method === 'OPTIONS') {
+        return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
+      }
+      const body = request.postDataJSON() as { image?: string };
+      state.aiReadCalls.push({ imageBytes: (body?.image ?? '').length });
+      const reply = state.aiRead ?? { status: 200, body: { ok: false, error: 'Not configured in this test.' } };
+      return json(route, reply.body, reply.status);
     }
 
     if (path === '/rest/v1/follow_ups') {

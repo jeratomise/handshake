@@ -12,13 +12,15 @@ import type { OcrProgress } from './lib/ocr';
 import { readCardText } from './lib/ocr';
 import { EMPTY_CARD, greetingName, parseCard } from './lib/parseCard';
 import { normalizePhone, pickBestPhone, whatsappUrl } from './lib/phone';
-import { prepareImage } from './lib/preprocess';
+import { prepareImage, toUploadJpeg } from './lib/preprocess';
 import { appendLog, clearLocalData, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
 import type { Session } from '@supabase/supabase-js';
 import AuthGate from './components/AuthGate';
 import AdminPanel from './components/AdminPanel';
 import { cloudEnabled, supabase } from './lib/supabase';
 import { fetchLog, fetchProfile, recordFollowUp, saveProfile as saveProfileRemote } from './lib/backend';
+import { aiReadAvailable, mergeAiFields, readCardWithAi } from './lib/aiOcr';
+import { FALLBACK_SETTINGS, fetchSettings, loadCachedSettings, type AppSettings } from './lib/settings';
 
 type Step = 'scan' | 'reading' | 'confirm' | 'context' | 'review' | 'sent';
 
@@ -49,6 +51,16 @@ function Handshake({ session }: { session: Session | null }) {
   const [cta, setCta] = useState<CtaId>(profile.defaultCta);
   /** Null while the user is happy with the generated draft. */
   const [override, setOverride] = useState<string | null>(null);
+
+  // AuthGate has already fetched and cached these by the time this mounts, so
+  // the cached read is both instant and current; the refresh is for a long
+  // session where an operator flips the switch mid-use.
+  const [settings, setSettings] = useState<AppSettings>(() => loadCachedSettings() ?? FALLBACK_SETTINGS);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
+  /** The untouched capture, kept so an AI re-read gets colour rather than the
+      greyscaled canvas Tesseract was given. */
+  const captureRef = useRef<Blob | null>(null);
 
   const lastUrlRef = useRef<string | null>(null);
   /** Once the user edits the greeting themselves, we stop re-deriving it. */
@@ -144,6 +156,9 @@ function Handshake({ session }: { session: Session | null }) {
       setProgress({ stage: 'loading-engine', ratio: 0 });
       setStep('reading');
 
+      captureRef.current = blob;
+      setAiNote(null);
+
       try {
         const prepared = await prepareImage(blob);
         if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -185,6 +200,59 @@ function Handshake({ session }: { session: Session | null }) {
     },
     [profile.defaultCountry],
   );
+
+  const refreshSettings = useCallback(() => {
+    void fetchSettings().then(setSettings);
+  }, []);
+  useEffect(refreshSettings, [refreshSettings]);
+
+  /**
+   * Re-reads the card with a vision model, on request.
+   *
+   * Only ever merges: a field the model returns empty leaves Tesseract's answer
+   * alone, and a phone it returns that will not normalise is discarded rather
+   * than shown. The user is told exactly which fields moved, because a screen
+   * that silently rewrites itself is one nobody trusts.
+   */
+  const handleAiReRead = useCallback(async () => {
+    const blob = captureRef.current;
+    if (!blob || aiBusy) return;
+
+    setAiBusy(true);
+    setAiNote(null);
+    try {
+      const image = await toUploadJpeg(blob);
+      const result = await readCardWithAi(image);
+      if (!result.ok || !result.fields) {
+        setAiNote({ tone: 'warn', text: result.error ?? 'The AI could not read that card.' });
+        return;
+      }
+
+      const { form: merged, changed } = mergeAiFields(form, result.fields, countryIso);
+      if (changed.length === 0) {
+        setAiNote({ tone: 'ok', text: 'The AI read it the same way — nothing changed.' });
+        return;
+      }
+
+      if (changed.includes('greeting')) greetingTouchedRef.current = false;
+      setForm(merged);
+      setDetected((current) => {
+        const next = { ...current };
+        for (const key of changed) next[key] = true;
+        return next;
+      });
+      // Re-resolve the country: the AI returns E.164, which may disagree with
+      // the market Tesseract's guess was resolved against.
+      const resolved = normalizePhone(merged.phone, countryIso);
+      if (resolved.ok && resolved.countryIso) setCountryIso(resolved.countryIso);
+
+      setAiNote({ tone: 'ok', text: `AI updated ${changed.join(', ')}.` });
+    } catch {
+      setAiNote({ tone: 'warn', text: 'Something went wrong preparing that card for the AI.' });
+    } finally {
+      setAiBusy(false);
+    }
+  }, [aiBusy, countryIso, form]);
 
   const handleSend = useCallback(() => {
     if (!phone.e164) return;
@@ -331,6 +399,10 @@ function Handshake({ session }: { session: Session | null }) {
           detected={detected}
           countryIso={countryIso}
           rawText={rawText}
+          aiAvailable={aiReadAvailable(settings.aiOcrEnabled)}
+          aiBusy={aiBusy}
+          aiNote={aiNote}
+          onAiReRead={() => void handleAiReRead()}
           onChange={(patch) =>
             setForm((current) => {
               const next = { ...current, ...patch };

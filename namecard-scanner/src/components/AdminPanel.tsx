@@ -170,22 +170,21 @@ export default function AdminPanel({ onExit }: Props) {
 
         <div className="admin-row">
           <div className="admin-row-text">
-            <h3>AI card reading</h3>
+            <h3>AI re-read button</h3>
             <p>
-              Every scan uses on-device OCR. Reading cards with a vision model instead is not built yet — the key and
-              model below are stored ready for it, but nothing sends them anywhere.
+              Every scan still uses on-device OCR. This adds a "Re-read this card with AI" button to the confirm
+              screen, for the cards it gets wrong. Needs a key below. That one card is sent to OpenRouter, so it does
+              leave the device — the button says so, and it is never automatic.
             </p>
           </div>
-          {/* Deliberately inert. A switch that flips but changes nothing is
-              worse than no switch: it invites someone to conclude the feature
-              is broken rather than absent. */}
           <button
             type="button"
             role="switch"
-            aria-checked={false}
-            aria-label="AI card reading — not available yet"
+            aria-checked={settings.aiOcrEnabled}
+            aria-label="AI re-read button"
             className="toggle"
-            disabled
+            onClick={() => void save({ aiOcrEnabled: !settings.aiOcrEnabled })}
+            disabled={busy || (!settings.aiOcrEnabled && !openrouter.configured)}
             data-testid="toggle-ai-ocr"
           >
             <span />
@@ -205,8 +204,8 @@ export default function AdminPanel({ onExit }: Props) {
           />
           <p className="field-note">
             Stored where only the server can read it, and never sent back to this page — which is why the box shows a
-            masked hint rather than the key. Nothing uses it yet; it is here so the switch above is a one-line change
-            when you want it.
+            masked hint rather than the key. The browser never holds it: re-reads go through an edge function that
+            calls OpenRouter, so a key here cannot be lifted out of the page and drained.
           </p>
         </label>
 

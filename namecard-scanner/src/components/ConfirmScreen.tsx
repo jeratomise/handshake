@@ -22,6 +22,11 @@ interface Props {
   onCountryChange: (iso: string) => void;
   onBack: () => void;
   onNext: () => void;
+  /** The operator has switched AI reading on and a backend exists to proxy it. */
+  aiAvailable: boolean;
+  aiBusy: boolean;
+  aiNote: { tone: 'ok' | 'warn'; text: string } | null;
+  onAiReRead: () => void;
 }
 
 function Field({
@@ -74,6 +79,10 @@ export default function ConfirmScreen({
   onCountryChange,
   onBack,
   onNext,
+  aiAvailable,
+  aiBusy,
+  aiNote,
+  onAiReRead,
 }: Props) {
   const phone = useMemo(() => normalizePhone(form.phone, countryIso), [form.phone, countryIso]);
   const canContinue = phone.ok;
@@ -183,6 +192,29 @@ export default function ConfirmScreen({
           inputMode="email"
           testId="field-email"
         />
+
+        {aiAvailable ? (
+          <div className="ai-rescan">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onAiReRead}
+              disabled={aiBusy}
+              data-testid="ai-reread"
+            >
+              {aiBusy ? 'Reading with AI…' : 'Re-read this card with AI'}
+            </button>
+            <p className="field-note">
+              For cards the on-device reader struggles with — bilingual text, unusual layouts, small print.{' '}
+              <strong>This one card is sent to an AI service to be read.</strong> Nothing else leaves your phone.
+            </p>
+            {aiNote ? (
+              <p className={`field-note${aiNote.tone === 'warn' ? ' warn' : ''}`} data-testid="ai-note">
+                {aiNote.text}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {rawText.trim() ? (
           <details className="raw">

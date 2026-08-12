@@ -130,7 +130,7 @@ test('email verification can be switched off from the panel', async ({ page }) =
   await expect.poll(() => store.requireEmailVerification).toBe(false);
 });
 
-test('the key is stored and never echoed back, and AI reading stays inert until it is built', async ({ page }) => {
+test('the key is stored and never echoed back, and AI stays off until switched on', async ({ page }) => {
   const store = freshStore();
   await mockSupabase(page);
   await mockAdmin(page, store);
@@ -140,7 +140,9 @@ test('the key is stored and never echoed back, and AI reading stays inert until 
   await page.getByTestId('admin-signin').click();
   await expect(page.getByTestId('admin-panel')).toBeVisible();
 
-  // The AI path is not implemented, so the switch must not pretend otherwise.
+  // Nothing to call OpenRouter with yet, so the switch cannot be thrown. A
+  // toggle that turns on a feature with no key would fail on the user's phone
+  // rather than here.
   await expect(page.getByTestId('toggle-ai-ocr')).toBeDisabled();
   await expect(page.getByTestId('toggle-ai-ocr')).toHaveAttribute('aria-checked', 'false');
 
@@ -155,9 +157,14 @@ test('the key is stored and never echoed back, and AI reading stays inert until 
   await expect(page.getByTestId('admin-openrouter-key')).toHaveValue('');
   expect(await page.content()).not.toContain(secret);
 
-  // Storing a key must not quietly switch card reading over to it.
-  await expect(page.getByTestId('toggle-ai-ocr')).toBeDisabled();
+  // Storing a key must not quietly switch card reading over to it — it only
+  // makes the choice available.
   expect(store.aiOcrEnabled).toBe(false);
+  await expect(page.getByTestId('toggle-ai-ocr')).toBeEnabled();
+
+  await page.getByTestId('toggle-ai-ocr').click();
+  await expect.poll(() => store.aiOcrEnabled).toBe(true);
+  await expect(page.getByTestId('toggle-ai-ocr')).toHaveAttribute('aria-checked', 'true');
 });
 
 test('the model can be changed', async ({ page }) => {
