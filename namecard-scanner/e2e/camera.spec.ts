@@ -62,17 +62,21 @@ test('the viewfinder shows the camera once permission is granted', async ({ page
             el.srcObject instanceof MediaStream
               ? el.srcObject.getVideoTracks().filter((t) => t.readyState === 'live').length
               : 0,
-          width: el.videoWidth,
-          height: el.videoHeight,
           paused: el.paused,
         })),
       { timeout: 20_000 },
     )
-    .toEqual({ hasStream: true, liveTracks: 1, width: expect.any(Number), height: expect.any(Number), paused: false });
+    .toEqual({ hasStream: true, liveTracks: 1, paused: false });
 
-  const size = await video.evaluate((el: HTMLVideoElement) => ({ w: el.videoWidth, h: el.videoHeight }));
-  expect(size.w).toBeGreaterThan(0);
-  expect(size.h).toBeGreaterThan(0);
+  // Polled separately, and on the value itself. Folding the dimensions into the
+  // object above with expect.any(Number) looked thorough and asserted nothing:
+  // 0 is a number, so the poll passed the instant the stream attached and the
+  // frames were never waited for.
+  await expect
+    .poll(() => video.evaluate((el: HTMLVideoElement) => Math.min(el.videoWidth, el.videoHeight)), {
+      timeout: 20_000,
+    })
+    .toBeGreaterThan(0);
 });
 
 test('the shutter captures a frame from the live viewfinder', async ({ page }) => {

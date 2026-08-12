@@ -3,8 +3,9 @@
 A mobile-first web app for sales BDEs. Scan a business card, answer one optional
 question about where you met, review the draft, and hand it to WhatsApp.
 
-Everything runs in the browser. No backend, no API keys, no card image or
-contact detail ever leaves the phone.
+Cards are read in the browser by default — no upload, no API key, nothing sent
+anywhere. The one exception is explicit and per-card: an optional "re-read with
+AI" button, off unless an operator turns it on. See [AI re-read](#ai-re-read).
 
 ---
 
@@ -108,9 +109,9 @@ it is reached by typing the URL.
 | Setting | Effect |
 | --- | --- |
 | Require email verification | Whether users sign in before the scanner opens |
-| AI card reading | Read cards with a vision model instead of on-device OCR |
+| AI re-read button | Adds "Re-read this card with AI" to the confirm screen |
 | OpenRouter API key | Write-only; stored where only the server can read it |
-| Model | Which vision model to use |
+| Model | Which vision model the re-read uses |
 
 Set the password once, in **Supabase → Edge Functions → Secrets**, as
 `ADMIN_PASSWORD`. Until it is set, `/admin` says so rather than letting anyone
@@ -142,6 +143,70 @@ this deployment.
 
 Only an exact `false` disables it — a typo, an empty value or an unset variable
 all leave the runtime setting in charge.
+
+## AI re-read
+
+On-device Tesseract runs on every card and is what the user normally sees.
+Where it struggles — bilingual layouts, small print, an unusual design — the
+confirm screen offers **"Re-read this card with AI"**, which sends that one
+card to a vision model through OpenRouter.
+
+Off by default. To switch it on: store an OpenRouter key in `/admin`, then flip
+**AI re-read button**. The toggle cannot be thrown without a key, because a
+feature enabled with nothing behind it fails on the user's phone rather than in
+the panel.
+
+### Why it is a server function
+
+`supabase/functions/ai-read-card/` proxies the call. The browser never holds
+the provider key: `app_secrets` has row level security on with no policies, so
+only `service_role` inside the function can read it. A key shipped to the page
+is a key anyone can drain.
+
+The second reason is money. Every call spends the operator's credit, which
+makes an open endpoint a way for a stranger to run up their bill — and sign-in
+cannot carry that load, because verification is off on this deployment and most
+callers have no session. Calls are metered per caller per day
+(`AI_READ_DAILY_LIMIT`, default 60) against `ai_read_usage`, keyed by user id
+where there is one and by IP where there is not. The counter is incremented by
+a `security definer` function in a single statement, so two concurrent requests
+cannot both read the old value and both pass the check. If the meter itself
+fails, the request is refused: spending money is the wrong default for a broken
+limiter.
+
+Verified against the live project:
+
+```
+POST with no auth header        ->  401
+GET                             ->  401
+POST anon, toggle off           ->  403  AI card reading is switched off.
+anon SELECT ai_read_usage       ->  []                    (no leak)
+anon RPC bump_ai_read_usage     ->  42501 permission denied
+anon SELECT app_secrets         ->  []                    (no leak)
+```
+
+### The model is merged, never trusted
+
+A vision model fails differently from OCR. Garbled Tesseract output looks
+garbled; an invented phone number looks perfect and opens a chat with a
+stranger. So `mergeAiFields` only ever merges:
+
+- a field the model returns empty never overwrites one already read
+- a phone number is accepted **only if it normalises** — otherwise the number
+  traceable to the card is kept
+- the user is told which fields moved, because a screen that silently rewrites
+  itself is one nobody trusts
+
+The prompt encodes the failures this market actually produces: a registration
+number that parses as a plausible mobile, a fax line picked over a mobile, and
+a country code the card only shows in brackets.
+
+### Privacy
+
+The scan screen says cards are read on the phone by default and that nothing is
+uploaded unless the user asks for an AI re-read. That wording is load-bearing —
+if the AI path ever becomes automatic, it stops being true, and the same claim
+appears on the sales infographic.
 
 ## Deploying (Vercel)
 
@@ -188,9 +253,9 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 122 unit tests — parsing, phone normalisation, drafting
+npm test               # 132 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 29 browser tests against the real production build
+npm run e2e            # 33 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it

@@ -181,8 +181,8 @@ export default function ScanScreen({ onCapture, error }: Props) {
           Point at the <em>card</em>.
         </h1>
         <p className="lede">
-          Fill the frame, keep it flat, and let the text stay sharp. Everything is read on your phone —
-          no card ever leaves the device.
+          Fill the frame, keep it flat, and let the text stay sharp. Cards are read on your phone by
+          default — nothing is uploaded unless you ask for an AI re-read.
         </p>
 
         {error ? (

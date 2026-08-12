@@ -124,6 +124,46 @@ export async function prepareImage(source: Blob): Promise<PreparedImage> {
   return { canvas, previewUrl: URL.createObjectURL(source), width, height };
 }
 
+/** Long edge for the copy sent to a vision model. */
+const UPLOAD_LONG_EDGE = 1600;
+
+/**
+ * A colour JPEG of the original capture, for the AI re-read.
+ *
+ * Deliberately not the canvas `prepareImage` produces. That one is greyscaled
+ * and contrast-stretched because it makes Tesseract markedly better, and every
+ * one of those steps throws away information a vision model would have used —
+ * colour separation between a logo and the text over it, the grey of a printed
+ * line against the white of the card.
+ *
+ * Resized because the card is going over a conference-hall connection and a
+ * 12-megapixel phone photo is several seconds of upload for no extra accuracy.
+ */
+export async function toUploadJpeg(source: Blob, quality = 0.82): Promise<string> {
+  const bitmap = await toBitmap(source);
+  const naturalWidth = 'width' in bitmap ? bitmap.width : 0;
+  const naturalHeight = 'height' in bitmap ? bitmap.height : 0;
+  if (!naturalWidth || !naturalHeight) throw new Error('That image appears to be empty.');
+
+  const longEdge = Math.max(naturalWidth, naturalHeight);
+  const scale = longEdge > UPLOAD_LONG_EDGE ? UPLOAD_LONG_EDGE / longEdge : 1;
+  const width = Math.round(naturalWidth * scale);
+  const height = Math.round(naturalHeight * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Your browser blocked image processing.');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap as CanvasImageSource, 0, 0, width, height);
+
+  if ('close' in bitmap && typeof bitmap.close === 'function') bitmap.close();
+
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
 /**
  * Grabs what the user can actually see in the viewfinder.
  *
