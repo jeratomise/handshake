@@ -21,9 +21,38 @@ export const EXPECTED = {
   name: 'Tan Wei Ming',
   greeting: 'Wei Ming',
   title: 'Regional Sales Director',
-  company: 'Meridian Logistics',
+  companyContains: 'meridian',
+  titleContains: 'sales director',
   email: 'weiming.tan@meridianlogistics.com',
   phoneDigits: '6591234567',
+};
+
+/**
+ * Fixtures that are a different person, keyed by file name.
+ *
+ * The Japanese and Korean cards exist to answer a question the rest of the set
+ * cannot: the language model is English-only, so what actually survives on a
+ * card whose native script it has never seen? The answer decides whether the
+ * app needs another 15 MB of training data or whether the Latin half was
+ * always the part that mattered.
+ */
+export const EXPECTED_BY_CARD = {
+  'bilingual-jp': {
+    name: 'Kenji Nakamura',
+    greeting: 'Kenji',
+    companyContains: 'sakura',
+    titleContains: 'sales',
+    email: 'k.nakamura@sakura-logistics.co.jp',
+    phoneDigits: '819012345678',
+  },
+  'bilingual-kr': {
+    name: 'Park Ji Hoon',
+    greeting: 'Ji Hoon',
+    companyContains: 'hanyang',
+    titleContains: 'manager',
+    email: 'jihoon.park@hanyanglogis.co.kr',
+    phoneDigits: '821098765432',
+  },
 };
 
 const CONTENT = `
@@ -144,6 +173,34 @@ const CJK_CONTENT = `
     <div>weiming.tan@meridianlogistics.com</div>
   </div>`;
 
+/**
+ * A Japanese card. Native script above the Latin, which is the usual layout,
+ * and the phone written the way Japanese cards write it: trunk prefix, hyphens,
+ * no country code.
+ */
+const JP_CONTENT = `
+  <div class="cjk">中村 健二</div>
+  <div class="name">KENJI NAKAMURA</div>
+  <div class="role">営業部長 Sales Manager</div>
+  <div class="org">さくら物流株式会社 SAKURA LOGISTICS CO., LTD.</div>
+  <div class="lines">
+    <div>携帯 Mobile: 090-1234-5678</div>
+    <div>電話 Tel: 03-5555-0123</div>
+    <div>k.nakamura@sakura-logistics.co.jp</div>
+  </div>`;
+
+/** A Korean card. Hangul above the Latin, and a 010 mobile. */
+const KR_CONTENT = `
+  <div class="cjk">박지훈</div>
+  <div class="name">PARK JI HOON</div>
+  <div class="role">영업팀장 Sales Team Manager</div>
+  <div class="org">한양물류 주식회사 HANYANG LOGISTICS CO., LTD.</div>
+  <div class="lines">
+    <div>휴대폰 Mobile: 010-9876-5432</div>
+    <div>전화 Tel: 02-555-0199</div>
+    <div>jihoon.park@hanyanglogis.co.kr</div>
+  </div>`;
+
 const CJK_CSS = `
   .cjk { font-size: 46px; font-weight: 700; margin-bottom: 8px; }
   .name { font-size: 40px; }
@@ -175,15 +232,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`  ${name}.jpg`);
   }
 
-  await page.setContent(
-    `<!doctype html><html><head><meta charset="utf-8"><style>${BASE}${CJK_CSS}</style></head><body>${CJK_CONTENT}</body></html>`,
-  );
-  await page.waitForTimeout(200);
-  await page.screenshot({ path: resolve(outDir, 'bilingual-cjk.png') });
-  console.log('  bilingual-cjk.png');
+  for (const [name, content] of [
+    ['bilingual-cjk', CJK_CONTENT],
+    ['bilingual-jp', JP_CONTENT],
+    ['bilingual-kr', KR_CONTENT],
+  ]) {
+    await page.setContent(
+      `<!doctype html><html><head><meta charset="utf-8"><style>${BASE}${CJK_CSS}</style></head><body>${content}</body></html>`,
+    );
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: resolve(outDir, `${name}.png`) });
+    console.log(`  ${name}.png`);
+  }
 
   await browser.close();
-  const count = Object.keys(VARIANTS).length + Object.keys(PHOTO_VARIANTS).length + 1;
+  const count = Object.keys(VARIANTS).length + Object.keys(PHOTO_VARIANTS).length + 3;
   console.log(`${count} cards written to ${outDir}`);
 }
 

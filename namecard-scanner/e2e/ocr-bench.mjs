@@ -16,7 +16,7 @@ import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findChromium } from './chromium-path.mjs';
-import { EXPECTED } from './make-fixtures.mjs';
+import { EXPECTED, EXPECTED_BY_CARD } from './make-fixtures.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cardsDir = resolve(here, 'fixtures', 'cards');
@@ -25,16 +25,33 @@ const target = (process.argv[2] ?? 'http://127.0.0.1:4173').replace(/\/$/, '');
 const norm = (s) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 const digits = (s) => s.replace(/\D/g, '');
 
-/** Field-level scoring, weighted by what actually breaks a follow-up. */
+/**
+ * Field-level scoring, weighted by what actually breaks a follow-up.
+ *
+ * Expectations are per card rather than global: most fixtures are the same
+ * contact photographed badly, but the Japanese and Korean cards are different
+ * people entirely, and scoring them against Meridian Logistics would just
+ * report a wall of zeroes that means nothing.
+ */
 const FIELDS = [
-  { key: 'phone', weight: 3, get: (f) => digits(f.phone), ok: (v) => v.endsWith(EXPECTED.phoneDigits.slice(-8)) },
-  { key: 'name', weight: 2, get: (f) => norm(f.name), ok: (v) => v === norm(EXPECTED.name) },
-  { key: 'greeting', weight: 2, get: (f) => norm(f.greeting), ok: (v) => v === norm(EXPECTED.greeting) },
-  { key: 'company', weight: 1, get: (f) => norm(f.company), ok: (v) => v.includes('meridian') },
-  { key: 'title', weight: 1, get: (f) => norm(f.title), ok: (v) => v.includes('sales director') },
-  { key: 'email', weight: 1, get: (f) => norm(f.email), ok: (v) => v === norm(EXPECTED.email) },
+  // Scored on the *resolved* number, not the raw field. The field holds what is
+  // printed on the card ('090-1234-5678'); the E.164 beneath it is what the
+  // wa.me link uses, and the country code is the whole point.
+  //
+  // Full digits, not a suffix match either: comparing only the tail passes a
+  // wrong country code, since +65 090 1234 5678 and +81 90 1234 5678 share
+  // their last eight.
+  { key: 'phone', weight: 3, get: (f) => digits(f.resolved), ok: (v, e) => v === e.phoneDigits },
+  { key: 'name', weight: 2, get: (f) => norm(f.name), ok: (v, e) => v === norm(e.name) },
+  { key: 'greeting', weight: 2, get: (f) => norm(f.greeting), ok: (v, e) => v === norm(e.greeting) },
+  { key: 'company', weight: 1, get: (f) => norm(f.company), ok: (v, e) => v.includes(norm(e.companyContains)) },
+  { key: 'title', weight: 1, get: (f) => norm(f.title), ok: (v, e) => v.includes(norm(e.titleContains)) },
+  { key: 'email', weight: 1, get: (f) => norm(f.email), ok: (v, e) => v === norm(e.email) },
 ];
 const MAX = FIELDS.reduce((sum, f) => sum + f.weight, 0);
+
+/** The contact a given fixture is a photograph of. */
+const expectationFor = (card) => EXPECTED_BY_CARD[card.replace(/\.(png|jpg)$/, '')] ?? EXPECTED;
 
 const browser = await chromium.launch({ executablePath: findChromium() });
 const page = await browser.newPage({ ...devices['Pixel 7'] });
@@ -80,17 +97,20 @@ for (const card of cards) {
       company: await page.getByTestId('field-company').inputValue(),
       email: await page.getByTestId('field-email').inputValue(),
       phone: await page.getByTestId('field-phone').inputValue(),
+      // 'Will open a chat with +81 90 1234 5678 — …'
+      resolved: await page.getByTestId('phone-resolved').textContent().catch(() => ''),
     };
   } catch {
     /* leave fields null: the card scored zero */
   }
 
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
+  const expected = expectationFor(card);
   const got = [];
   let score = 0;
   for (const field of FIELDS) {
     const value = fields ? field.get(fields) : '';
-    const ok = Boolean(value) && field.ok(value);
+    const ok = Boolean(value) && field.ok(value, expected);
     if (ok) score += field.weight;
     else got.push(`${field.key}="${value}"`);
   }

@@ -11,7 +11,8 @@ import { buildVCard, composeDraft, type CtaId, type SenderProfile, type Tone } f
 import type { OcrProgress } from './lib/ocr';
 import { readCardText } from './lib/ocr';
 import { EMPTY_CARD, greetingName, parseCard } from './lib/parseCard';
-import { normalizePhone, pickBestPhone, whatsappUrl } from './lib/phone';
+import { chooseMarket, normalizePhone, pickBestPhone, whatsappUrl } from './lib/phone';
+import { countryFromTld } from './lib/countries';
 import { prepareImage, toUploadJpeg } from './lib/preprocess';
 import { appendLog, clearLocalData, countToday, loadLog, loadProfile, profileIsComplete, saveProfile, type LogEntry } from './lib/storage';
 import type { Session } from '@supabase/supabase-js';
@@ -168,14 +169,24 @@ function Handshake({ session }: { session: Session | null }) {
         const text = await readCardText(prepared.canvas, setProgress);
         const card = text.trim() ? parseCard(text) : EMPTY_CARD;
 
-        // Resolve the phone against the user's home market first, then let an
-        // explicit country code on the card override it.
-        const best = pickBestPhone(card.phones, profile.defaultCountry);
-        const resolved = best ? normalizePhone(best.raw, profile.defaultCountry) : null;
+        // Which market the card's local-format numbers belong to. The user's
+        // home market unless it cannot explain the number and the email's
+        // country TLD can — a Japanese card printing '090-1234-5678' otherwise
+        // resolves to +65 090 1234 5678, a number belonging to nobody.
+        const market = chooseMarket(
+          card.phones,
+          profile.defaultCountry,
+          countryFromTld(card.email || card.website),
+        );
+
+        // Resolve the phone against that market first, then let an explicit
+        // country code on the card override it.
+        const best = pickBestPhone(card.phones, market);
+        const resolved = best ? normalizePhone(best.raw, market) : null;
 
         greetingTouchedRef.current = false;
         setRawText(text);
-        setCountryIso(resolved?.countryIso ?? profile.defaultCountry);
+        setCountryIso(resolved?.countryIso ?? market);
         setForm({
           name: card.name,
           greeting: card.firstName,
