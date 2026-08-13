@@ -142,6 +142,26 @@ function fromBracketedCountryCode(raw: string): NormalizedPhone | null {
  * and anything we had to infer comes back as a `warning` for the user to confirm.
  */
 export function normalizePhone(raw: string, defaultIso: string): NormalizedPhone {
+  const first = normalizeOnce(raw, defaultIso);
+  if (first.ok && first.confidence !== 'guess') return first;
+
+  // A glyph the reader could not make out — a phone icon, or the 携帯 that
+  // labels a Japanese mobile — comes back as a stray digit welded to the front
+  // of the number: '8 090-1234-5678'. The country code is then computed from
+  // one digit too many, and a Tokyo mobile becomes +65 8090 1234 5678.
+  //
+  // Retried only when the whole string already parsed as a guess, and kept only
+  // if dropping the digit reads better. '1 415 555 0123' is a real US number
+  // written with its country code, and must not lose it.
+  const withoutStray = (raw ?? '').trim().replace(/^\d[\s.\-–—]+/, '');
+  if (withoutStray && withoutStray !== (raw ?? '').trim()) {
+    const retry = normalizeOnce(withoutStray, defaultIso);
+    if (retry.ok && retry.confidence !== 'guess') return retry;
+  }
+  return first;
+}
+
+function normalizeOnce(raw: string, defaultIso: string): NormalizedPhone {
   const trimmed = (raw ?? '').trim();
   if (!trimmed) return fail('No phone number.');
 

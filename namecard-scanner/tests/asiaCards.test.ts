@@ -131,6 +131,60 @@ describe('rescuePhrase with no separator to cut on', () => {
   });
 });
 
+describe('a stray digit welded to the front of a number', () => {
+  it('drops a misread glyph that corrupted the country code', () => {
+    // The 携帯 that labels a Japanese mobile comes back as '8'. PHONE_RE
+    // swallows it, and +81 90 1234 5678 becomes +65 8090 1234 5678.
+    expect(normalizePhone('8 090-1234-5678', 'JP').e164).toBe('+819012345678');
+    expect(normalizePhone('0 (6019) 7314 959', 'SG').e164).toBe('+60197314959');
+  });
+
+  it('never strips a leading digit that is the country code', () => {
+    // '1 415 555 0123' is a real US number written with its country code, and
+    // it must not lose it. Only a reading that was already a guess is retried.
+    expect(normalizePhone('1 415 555 0123', 'US').e164).toBe('+14155550123');
+    expect(normalizePhone('1 415 555 0123', 'SG').e164).toBe('+14155550123');
+  });
+
+  it('leaves an ordinary number alone', () => {
+    expect(normalizePhone('9123 4567', 'SG').e164).toBe('+6591234567');
+    expect(normalizePhone('090-1234-5678', 'JP').e164).toBe('+819012345678');
+  });
+});
+
+/**
+ * A card with no Latin name at all — no bilingual half to fall back on.
+ *
+ * This is the honest edge of an English-only reader, recorded rather than
+ * papered over. The contact details survive because digits and email addresses
+ * are ASCII wherever the card is printed; the name does not, and on the
+ * Japanese card the model invents a plausible-looking one ('Sly Se' out of
+ * 中村 健二) which is worse than returning nothing.
+ *
+ * No heuristic can reliably tell an invented Latin name from a real one, so
+ * this is what the AI re-read exists for.
+ */
+describe('a card printed only in Japanese or Korean', () => {
+  const JP_ONLY_AS_READ = `Sly Se
+8 090-1234-5678
+BAG 03-5555-0123
+k.nakamura@sakura-logistics.co.jp`;
+
+  it('still gets the phone and the market right', () => {
+    const card = parseCard(JP_ONLY_AS_READ);
+    const market = chooseMarket(card.phones, 'SG', countryFromTld(card.email));
+    expect(market).toBe('JP');
+    const best = pickBestPhone(card.phones, market);
+    expect(normalizePhone(best!.raw, market).e164).toBe('+819012345678');
+  });
+
+  it('still gets the email and an approximate company', () => {
+    const card = parseCard(JP_ONLY_AS_READ);
+    expect(card.email).toBe('k.nakamura@sakura-logistics.co.jp');
+    expect(card.company).toContain('Sakura');
+  });
+});
+
 describe('the Japanese card end to end', () => {
   const card = parseCard(JP_AS_READ);
 
