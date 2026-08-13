@@ -253,7 +253,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 153 unit tests — parsing, phone normalisation, drafting
+npm test               # 158 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 33 browser tests against the real production build
 ```
@@ -368,8 +368,33 @@ and everything after it belongs.
 What is *not* fixed: a short debris token immediately before the anchor
 survives, so the Korean title reads `Xt Sales Team Manager`. Trimming it would
 mean dropping any two- or three-letter prefix, which would also eat the `IT` in
-`IT Sales Manager`. The AI re-read handles these cards properly — Gemini reads
-both scripts — and that is the escape hatch it exists for.
+`IT Sales Manager`.
+
+### The limit: a card with no Latin on it at all
+
+Everything above concerns *bilingual* cards, which is what a JP or KR contact
+hands a foreigner. A card printed only in Japanese or Korean is a different
+matter, and was measured separately:
+
+| | Japanese-only | Korean-only |
+| --- | --- | --- |
+| Phone | ✅ `+81 90 1234 5678` | ✅ `+82 10 9876 5432` |
+| Email | ✅ | ✅ |
+| Company | ⚠️ from the domain | ⚠️ from the domain |
+| Title | ❌ lost | ❌ lost |
+| Name | ❌ **invented** — `中村 健二` reads as "Sly Se" | ⚠️ from the email |
+
+The contact details survive because digits and email addresses are ASCII
+wherever a card is printed. The name does not, and the Japanese failure is the
+dangerous kind: the model returns a plausible-looking Latin name rather than
+nothing, so the message opens "Hi Sly".
+
+No heuristic reliably tells an invented Latin name from a real one — that is
+the definition of what an English-only model cannot do. **Monolingual CJK cards
+need the AI re-read**, which is exactly what it is there for. Adding `jpn` and
+`kor` traineddata would be the alternative, at roughly 15 MB each and with
+vertical-text layouts still unsolved; worth revisiting only if these cards turn
+out to be common in practice.
 
 ## How it is put together
 
