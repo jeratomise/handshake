@@ -253,9 +253,9 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 158 unit tests — parsing, phone normalisation, drafting
+npm test               # 176 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 33 browser tests against the real production build
+npm run e2e            # 37 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it
@@ -324,6 +324,44 @@ The generative model only supplies the photograph in the band, where being
 approximately right is the whole job. The layout also asserts it fits — blocks
 are `flex: none`, so an over-full poster fails the build instead of silently
 squashing the photo band to a sliver.
+
+## Writing in the contact's language
+
+A Japanese or Korean contact gets a message in their own language, chosen
+automatically. `src/lib/draftIntl.ts` owns it, and it is a different message
+rather than the English one translated:
+
+**Addressed by family name, not given name.** English opens "Hi Kenji";
+Japanese opens `Nakamura様`. Writing `Kenji様` to someone whose card you took
+ten minutes ago reads as presumptuous. This is the exact inverse of what
+`greetingName` computes, so the family name is recovered as the part of the
+name the greeting left behind — which got there via the email and a surname
+list, not a positional guess. Korean uses the full name plus `님`.
+
+**There is no casual register.** The app offers warm / direct / formal, and all
+three map onto polite forms here. "Direct" means shorter, never plainer:
+casual Japanese to a new business contact is not a blunter version of the same
+message, it is an insult. Tests assert every tone keeps `です・ます` and closes
+with `よろしくお願い`.
+
+**The language follows the market, not the name.** `Park` is Korean on a Seoul
+number and American on a Chicago one. The trigger is the contact's resolved
+country — a fact read off the card — rather than a guess about their
+ethnicity from a romanised name.
+
+**Free text is quoted, not translated.** The ten quick-pick meeting places have
+proper renderings (`at the trade show` → `展示会で`). Anything the user typed
+themselves is kept in their words inside `「」`, because a mangled guess at an
+event name is worse than the name itself.
+
+The review screen carries a language row above the message, so a BDE who does
+not read Japanese can see which language is about to go out and switch back in
+one tap.
+
+> The wording is business-standard but was not written by a native speaker.
+> Worth one review by someone who writes Japanese and Korean commercially —
+> the tests assert the *conventions*, not the exact prose, so the phrasing can
+> be improved without the suite fighting back.
 
 ## Japanese and Korean cards
 

@@ -7,7 +7,7 @@ import ScanScreen from './components/ScanScreen';
 import SentScreen from './components/SentScreen';
 import SetupSheet from './components/SetupSheet';
 import { GearIcon } from './components/Icons';
-import { buildVCard, composeDraft, type CtaId, type SenderProfile, type Tone } from './lib/draft';
+import { buildVCard, composeDraft, languageForCountry, type CtaId, type MessageLanguage, type SenderProfile, type Tone } from './lib/draft';
 import type { OcrProgress } from './lib/ocr';
 import { readCardText } from './lib/ocr';
 import { EMPTY_CARD, greetingName, parseCard } from './lib/parseCard';
@@ -52,6 +52,8 @@ function Handshake({ session }: { session: Session | null }) {
   const [cta, setCta] = useState<CtaId>(profile.defaultCta);
   /** Null while the user is happy with the generated draft. */
   const [override, setOverride] = useState<string | null>(null);
+  /** null = follow the contact's market; set = the user picked a language. */
+  const [languageChoice, setLanguageChoice] = useState<MessageLanguage | null>(null);
 
   // AuthGate has already fetched and cached these by the time this mounts, so
   // the cached read is both instant and current; the refresh is for a long
@@ -114,6 +116,12 @@ function Handshake({ session }: { session: Session | null }) {
 
   const phone = useMemo(() => normalizePhone(form.phone, countryIso), [form.phone, countryIso]);
 
+  // Which language to write in. Driven by the contact's resolved market rather
+  // than by their name: 'Park' is Korean on a Seoul number and American on a
+  // Chicago one, and the market is a fact off the card where the name is a
+  // guess about a person.
+  const language = languageChoice ?? languageForCountry(countryIso);
+
   const generated = useMemo(
     () =>
       composeDraft({
@@ -126,13 +134,15 @@ function Handshake({ session }: { session: Session | null }) {
         context,
         tone,
         cta,
+        language,
       }),
-    [form.greeting, form.name, form.company, profile.name, profile.company, context, tone, cta],
+    [form.greeting, form.name, form.company, profile.name, profile.company, context, tone, cta, language],
   );
 
   const message = override ?? generated;
 
   const resetCard = useCallback(() => {
+    setLanguageChoice(null);
     setForm(BLANK_FORM);
     setDetected({});
     greetingTouchedRef.current = false;
@@ -454,6 +464,14 @@ function Handshake({ session }: { session: Session | null }) {
           onRegenerate={() => setOverride(null)}
           onBack={() => setStep('context')}
           onSend={handleSend}
+          language={language}
+          languageAuto={languageChoice === null}
+          onLanguageChange={(next) => {
+            setLanguageChoice(next);
+            // A hand-edited message is in the old language; keeping it would
+            // make the switch look broken.
+            setOverride(null);
+          }}
         />
       ) : (
         <SentScreen

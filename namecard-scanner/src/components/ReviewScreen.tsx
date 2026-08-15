@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatE164 } from '../lib/phone';
+import { LANGUAGES, type MessageLanguage } from '../lib/draft';
 import { TicksIcon, WhatsAppIcon } from './Icons';
 
 interface Props {
@@ -13,6 +14,10 @@ interface Props {
   onRegenerate: () => void;
   onBack: () => void;
   onSend: () => void;
+  language: MessageLanguage;
+  /** True when the language came from the contact's market, not from a tap. */
+  languageAuto: boolean;
+  onLanguageChange: (language: MessageLanguage) => void;
 }
 
 export default function ReviewScreen({
@@ -26,6 +31,9 @@ export default function ReviewScreen({
   onRegenerate,
   onBack,
   onSend,
+  language,
+  languageAuto,
+  onLanguageChange,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const subtitle = [title, company].filter(Boolean).join(' · ');
@@ -46,6 +54,31 @@ export default function ReviewScreen({
           {subtitle ? <div className="what">{subtitle}</div> : null}
           <div className="num">{formatE164(e164)}</div>
         </div>
+
+        {/* Placed above the message, not buried in settings: a BDE who does not
+            read Japanese needs to see at a glance which language is about to
+            go out, and be able to change it in one tap. */}
+        <div className="lang-row" data-testid="language-row">
+          {LANGUAGES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={`chip${language === option.id ? ' on' : ''}`}
+              aria-pressed={language === option.id}
+              onClick={() => onLanguageChange(option.id)}
+              data-testid={`language-${option.id}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {language !== 'en' && languageAuto ? (
+          <p className="field-note" data-testid="language-note">
+            Written in {LANGUAGES.find((l) => l.id === language)?.label} because this is a{' '}
+            {language === 'ja' ? 'Japanese' : 'Korean'} number. {LANGUAGES.find((l) => l.id === language)?.note} Switch
+            to English above if you would rather.
+          </p>
+        ) : null}
 
         {editing ? (
           <label className="field">

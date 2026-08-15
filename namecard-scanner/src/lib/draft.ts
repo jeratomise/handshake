@@ -1,3 +1,5 @@
+import { composeLocalizedDraft, type MessageLanguage } from './draftIntl';
+
 export type Tone = 'warm' | 'direct' | 'formal';
 export type CtaId = 'none' | 'keep-posted' | 'meeting' | 'send-info';
 
@@ -20,6 +22,8 @@ export interface Contact {
 }
 
 export interface DraftInput {
+  /** Which language the message is written in. Defaults to English. */
+  language?: MessageLanguage;
   contact: Pick<Contact, 'firstName' | 'name' | 'company'>;
   sender: Pick<SenderProfile, 'name' | 'company'>;
   /** Free text or a quick-pick phrase. Empty means the user skipped the question. */
@@ -88,6 +92,14 @@ function joinParagraphs(parts: (string | null | undefined)[]): string {
  * not going to stop and fill in a form.
  */
 export function composeDraft(input: DraftInput): string {
+  // A Japanese or Korean contact gets written to in their own language, and
+  // that is a different message rather than this one translated: it opens with
+  // the family name, introduces the sender before anything else, and closes
+  // with a set phrase. None of that survives a word-for-word rendering.
+  if (input.language === 'ja' || input.language === 'ko') {
+    return composeLocalizedDraft(input, input.language);
+  }
+
   const first = (input.contact.firstName || input.contact.name || '').trim();
   const greetingName = first || 'there';
   const sender = input.sender.name.trim();
@@ -151,3 +163,5 @@ export function buildVCard(contact: Contact): string {
   ];
   return lines.filter(Boolean).join('\r\n');
 }
+
+export { languageForCountry, familyName, LANGUAGES, type MessageLanguage } from './draftIntl';
