@@ -23,7 +23,7 @@ create table if not exists public.app_settings (
   id boolean primary key default true check (id),
   require_email_verification boolean not null default true,
   ai_ocr_enabled boolean not null default false,
-  ai_ocr_model text not null default 'google/gemini-2.5-flash',
+  ai_ocr_model text not null default 'google/gemini-3.7-flash',
   updated_at timestamptz not null default now()
 );
 

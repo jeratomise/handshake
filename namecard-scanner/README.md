@@ -111,7 +111,7 @@ it is reached by typing the URL.
 | Require email verification | Whether users sign in before the scanner opens |
 | AI re-read button | Adds "Re-read this card with AI" to the confirm screen |
 | OpenRouter API key | Write-only; stored where only the server can read it |
-| Model | Which vision model the re-read uses |
+| Model | Which vision model the re-read uses (default `google/gemini-3.7-flash`) |
 
 Set the password once, in **Supabase → Edge Functions → Secrets**, as
 `ADMIN_PASSWORD`. Until it is set, `/admin` says so rather than letting anyone
@@ -185,6 +185,34 @@ anon RPC bump_ai_read_usage     ->  42501 permission denied
 anon SELECT app_secrets         ->  []                    (no leak)
 ```
 
+### Model ids are checked, not remembered
+
+Every id in the `/admin` dropdown was verified against the live OpenRouter
+catalogue — it exists, and it accepts image input. A model id that does not
+exist fails at the moment a BDE taps the button, never at the point it was
+typed, so setting one from memory is not good enough.
+
+Default is `google/gemini-3.7-flash`: 1M context, image input, and cheaper per
+token in both directions than the 3.6 it replaced.
+
+### What it does on a card Tesseract cannot read
+
+Verified against the live endpoint with a card printed only in Japanese — the
+one on-device OCR turns into "Sly Se":
+
+```json
+{ "name": "中村 健二", "title": "営業部長", "company": "さくら物流株式会社",
+  "email": "k.nakamura@sakura-logistics.co.jp", "phone": "+819012345678" }
+```
+
+Correct kanji, correct E.164 inferred from the postal address alone, the mobile
+chosen over the office line, and the fax line ignored. This is the answer for
+monolingual CJK cards, and it is why the escape hatch exists.
+
+Note it returns the **native script**, not a romanisation — which is better for
+the message, and which inverts the name logic: 中村 健二 is family-first, so the
+Japanese draft must open 中村様 and not 健二様. See `CJK_NAME_RE`.
+
 ### The model is merged, never trusted
 
 A vision model fails differently from OCR. Garbled Tesseract output looks
@@ -253,7 +281,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 176 unit tests — parsing, phone normalisation, drafting
+npm test               # 181 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 37 browser tests against the real production build
 ```

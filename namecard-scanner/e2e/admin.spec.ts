@@ -177,8 +177,8 @@ test('the model can be changed', async ({ page }) => {
   await page.getByTestId('admin-signin').click();
   await expect(page.getByTestId('admin-panel')).toBeVisible();
 
-  await page.getByTestId('admin-model').selectOption('anthropic/claude-sonnet-4.5');
-  await expect.poll(() => store.aiOcrModel).toBe('anthropic/claude-sonnet-4.5');
+  await page.getByTestId('admin-model').selectOption('anthropic/claude-sonnet-5');
+  await expect.poll(() => store.aiOcrModel).toBe('anthropic/claude-sonnet-5');
 });
 
 test('admin is reachable only at /admin, and the app carries no link to it', async ({ page }) => {

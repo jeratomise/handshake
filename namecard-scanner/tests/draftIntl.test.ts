@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { composeDraft, familyName, languageForCountry } from '../src/lib/draft';
+import { greetingName } from '../src/lib/parseCard';
 import type { DraftInput, MessageLanguage } from '../src/lib/draft';
 
 /**
@@ -145,6 +146,48 @@ describe('Korean draft', () => {
 
   it('carries the ask when one was chosen', () => {
     expect(korean({ cta: 'send-info' })).toContain('자료');
+  });
+});
+
+/**
+ * What a vision model returns for a card printed only in Japanese.
+ *
+ * Gemini gives the native script rather than a romanisation — which is better
+ * than Latin for the message, and inverts the name logic. Verified against the
+ * live endpoint, not assumed: it returned exactly {"name":"中村 健二"}.
+ */
+describe('a name in the native script', () => {
+  it('is family-first, so the family name is the FIRST token', () => {
+    expect(familyName('中村 健二', '健二')).toBe('中村');
+    expect(familyName('田中 太郎', '太郎')).toBe('田中');
+  });
+
+  it('greets by the given name, which is the last token', () => {
+    // The email and the surname list are both Latin and cannot help here.
+    expect(greetingName('中村 健二')).toBe('健二');
+    expect(greetingName('中村 健二', 'k.nakamura@sakura-logistics.co.jp')).toBe('健二');
+  });
+
+  it('opens the Japanese message with the family name', () => {
+    // 健二様 is the given name — the one mistake this whole module exists to
+    // prevent, and it reappeared the moment the AI supplied real kanji.
+    const message = composeDraft(
+      base({ language: 'ja', contact: { firstName: '健二', name: '中村 健二', company: 'さくら物流株式会社' } }),
+    );
+    expect(message).toContain('中村様');
+    expect(message).not.toContain('健二様');
+  });
+
+  it('handles a Korean name written as one token', () => {
+    expect(greetingName('박지훈')).toBe('박지훈');
+    expect(composeDraft(base({ language: 'ko', contact: { firstName: '박지훈', name: '박지훈', company: 'x' } }))).toContain(
+      '박지훈님',
+    );
+  });
+
+  it('leaves romanised names on the old path', () => {
+    expect(familyName('Kenji Nakamura', 'Kenji')).toBe('Nakamura');
+    expect(greetingName('Kenji Nakamura', 'k.nakamura@sakura-logistics.co.jp')).toBe('Kenji');
   });
 });
 

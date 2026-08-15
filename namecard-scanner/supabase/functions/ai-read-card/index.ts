@@ -126,19 +126,23 @@ Deno.serve(async (request: Request): Promise<Response> => {
   // also hides the button, but a hidden button is not a control.
   const { data: settings } = await admin
     .from('app_settings')
+    // app_settings is a single-row table keyed by a boolean, not an integer:
+    // `.eq('id', 1)` matches nothing, leaves settings null, and makes this
+    // function answer "switched off" for ever however the toggle is set.
     .select('ai_ocr_enabled, ai_ocr_model')
-    .eq('id', 1)
+    .eq('id', true)
     .maybeSingle();
 
   if (!settings?.ai_ocr_enabled) return json({ error: 'AI card reading is switched off.' }, 403);
 
+  // Single row, one column per credential — not a name/value table.
   const { data: secret } = await admin
     .from('app_secrets')
-    .select('value')
-    .eq('name', 'openrouter_api_key')
+    .select('openrouter_api_key')
+    .eq('id', true)
     .maybeSingle();
 
-  const apiKey = typeof secret?.value === 'string' ? secret.value.trim() : '';
+  const apiKey = typeof secret?.openrouter_api_key === 'string' ? secret.openrouter_api_key.trim() : '';
   if (!apiKey) return json({ error: 'No OpenRouter key is configured.' }, 503);
 
   // Meter before spending anything. Prefer the user id when there is one, so a
@@ -158,7 +162,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ error: 'Daily AI re-read limit reached. Try again tomorrow.' }, 429);
   }
 
-  const model = (settings.ai_ocr_model ?? '').trim() || 'google/gemini-2.5-flash';
+  const model = (settings.ai_ocr_model ?? '').trim() || 'google/gemini-3.7-flash';
 
   let response: Response;
   try {
