@@ -317,6 +317,9 @@ function normalizeToken(value: string): string {
  * email. The result is shown in an editable field, because no heuristic gets
  * every name right.
  */
+/** Kana, kanji or hangul anywhere in the string. */
+export const CJK_NAME_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
+
 export function greetingName(fullName: string, email = ''): string {
   const tokens = fullName.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return '';
@@ -326,6 +329,13 @@ export function greetingName(fullName: string, email = ''): string {
   const last = tokens[tokens.length - 1]!;
   const rest = tokens.slice(1);
   const allButLast = tokens.slice(0, -1);
+
+  // A name written in kanji, kana or hangul is family-first without exception,
+  // so the personal name is everything after the first token. No email or
+  // surname list is needed, and neither would help: they hold Latin text.
+  // This only shows up once a vision model returns the native script rather
+  // than a romanisation.
+  if (CJK_NAME_RE.test(fullName)) return rest.join(' ');
 
   const emailTokens = email ? tokensFromEmailLocal(email) : [];
   const lead = emailTokens[0];

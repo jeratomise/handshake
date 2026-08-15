@@ -1,3 +1,4 @@
+import { CJK_NAME_RE } from './parseCard';
 import type { CtaId, DraftInput } from './draft';
 
 /**
@@ -48,6 +49,11 @@ export const LANGUAGES: { id: MessageLanguage; label: string; note: string }[] =
 export function familyName(fullName: string, greeting: string): string {
   const all = fullName.trim().split(/\s+/).filter(Boolean);
   if (all.length <= 1) return all[0] ?? '';
+
+  // '中村 健二' is family-first, so the greeting-complement trick below would
+  // return 健二 and open the message 健二様 — the given name, which is the one
+  // mistake this module exists to prevent.
+  if (CJK_NAME_RE.test(fullName)) return all[0]!;
 
   const personal = new Set(
     greeting

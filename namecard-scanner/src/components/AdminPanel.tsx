@@ -4,11 +4,14 @@ import { supabaseHost } from '../lib/supabase';
 import { AlertIcon, BackIcon, CheckIcon } from './Icons';
 
 /** Models worth offering, cheapest-capable first. */
+// Every id here was checked against the live OpenRouter catalogue and accepts
+// image input. A model id that does not exist fails at the moment a BDE taps
+// the button, not here, so guessing one is worse than offering fewer.
 const MODELS = [
-  { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', note: 'Best cost-to-accuracy for OCR. Start here.' },
-  { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', note: 'Best on messy layouts and structure. Pricier.' },
-  { id: 'qwen/qwen2.5-vl-72b-instruct', label: 'Qwen2.5-VL 72B', note: 'Cheapest tier, strong on CJK cards.' },
-  { id: 'openai/gpt-4.1', label: 'GPT-4.1', note: 'Solid all-rounder.' },
+  { id: 'google/gemini-3.7-flash', label: 'Gemini 3.7 Flash', note: 'Best cost-to-accuracy for cards. Start here.' },
+  { id: 'anthropic/claude-sonnet-5', label: 'Claude Sonnet 5', note: 'Best on messy layouts and structure. Pricier.' },
+  { id: 'qwen/qwen3-vl-235b-a22b-instruct', label: 'Qwen3-VL 235B', note: 'Cheap, and strong on Chinese and Korean cards.' },
+  { id: 'openai/gpt-5.4-mini', label: 'GPT-5.4 mini', note: 'Solid all-rounder.' },
 ];
 
 interface Props {

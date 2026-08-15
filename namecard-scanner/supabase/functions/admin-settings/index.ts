@@ -137,7 +137,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       settings: {
         requireEmailVerification: settings?.require_email_verification ?? true,
         aiOcrEnabled: settings?.ai_ocr_enabled ?? false,
-        aiOcrModel: settings?.ai_ocr_model ?? 'google/gemini-2.5-flash',
+        aiOcrModel: settings?.ai_ocr_model ?? 'google/gemini-3.7-flash',
         updatedAt: settings?.updated_at ?? null,
       },
       openrouter: { configured: key.length > 0, hint: maskKey(key) },

@@ -28,7 +28,7 @@ export interface AppSettings {
 export const FALLBACK_SETTINGS: AppSettings = {
   requireEmailVerification: true,
   aiOcrEnabled: false,
-  aiOcrModel: 'google/gemini-2.5-flash',
+  aiOcrModel: 'google/gemini-3.7-flash',
 };
 
 /** Long enough for a slow connection, short enough not to feel broken. */
