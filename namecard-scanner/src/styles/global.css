@@ -357,6 +357,14 @@ h1 em {
   cursor: pointer;
 }
 
+/* Language chips above the message. Deliberately prominent: the sender may
+   not read the language they are about to send in. */
+.lang-row {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
 /* The AI re-read block. Set apart from the fields above it because tapping it
    sends the card off the device — it should not read as just another control. */
 .ai-rescan {
