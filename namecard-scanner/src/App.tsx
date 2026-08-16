@@ -6,6 +6,7 @@ import ReviewScreen from './components/ReviewScreen';
 import ScanScreen from './components/ScanScreen';
 import SentScreen from './components/SentScreen';
 import SetupSheet from './components/SetupSheet';
+import SourceBar from './components/SourceBar';
 import { GearIcon } from './components/Icons';
 import { buildVCard, composeDraft, languageForCountry, type CtaId, type MessageLanguage, type SenderProfile, type Tone } from './lib/draft';
 import type { OcrProgress } from './lib/ocr';
@@ -517,6 +518,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Outside AuthGate on purpose: a visitor who lands on the sign-in screen
+          should still see what this is and where it is documented. */}
+      <SourceBar />
       <AuthGate>{(session) => <Handshake session={session} />}</AuthGate>
     </div>
   );

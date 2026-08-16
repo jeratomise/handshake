@@ -96,6 +96,64 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* ---------------------------------------------------------- announcement bar */
+/* Above the header, so it is the first thing on screen and never scrolls away
+   with a panel. `flex: none` because .app is a flex column — without it this
+   would be squeezed to nothing by the panel below. */
+.announce {
+  flex: none;
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px 16px;
+  background: linear-gradient(90deg, rgba(204, 255, 63, 0.13), rgba(204, 255, 63, 0.04));
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.announce p {
+  flex: 1;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--paper-dim);
+}
+
+.announce a {
+  color: var(--signal);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(204, 255, 63, 0.45);
+  text-underline-offset: 3px;
+}
+
+.announce button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--paper-faint);
+  cursor: pointer;
+  transition: color 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.announce button:hover,
+.announce button:focus-visible {
+  color: var(--paper);
+  background: rgba(244, 242, 236, 0.08);
+}
+
+/* The bar owns the safe area once it is on screen, so the header must not add
+   it a second time. */
+.announce + .topbar {
+  padding-top: 14px;
+}
+
 /* ------------------------------------------------------------------- header */
 .topbar {
   display: flex;

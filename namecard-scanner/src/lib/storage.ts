@@ -3,6 +3,7 @@ import { guessCountryIso } from './countries';
 
 const PROFILE_KEY = 'handshake.profile.v1';
 const LOG_KEY = 'handshake.log.v1';
+const SOURCE_BAR_KEY = 'handshake.sourcebar.v1';
 
 export interface LogEntry {
   id: string;
@@ -64,6 +65,33 @@ export function saveProfile(profile: SenderProfile): void {
 
 export function profileIsComplete(profile: SenderProfile): boolean {
   return profile.name.trim().length > 0;
+}
+
+/**
+ * Whether the "open source" bar at the top has been closed.
+ *
+ * Dismissal is permanent from the user's point of view: it survives reloads and
+ * new sessions, and only comes back if they clear the site's data. A banner
+ * that reappears every visit is an ad, and this one is a pointer to the
+ * documentation.
+ *
+ * Read defensively — a browser with storage blocked should show the bar rather
+ * than throw on the first render.
+ */
+export function sourceBarDismissed(): boolean {
+  try {
+    return localStorage.getItem(SOURCE_BAR_KEY) === 'dismissed';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissSourceBar(): void {
+  try {
+    localStorage.setItem(SOURCE_BAR_KEY, 'dismissed');
+  } catch {
+    /* Storage blocked: the bar closes for this session and returns next time. */
+  }
 }
 
 export function loadLog(): LogEntry[] {

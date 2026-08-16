@@ -247,20 +247,19 @@ export default function ScanScreen({ onCapture, error }: Props) {
           aria-label="Upload a photo of a business card"
         />
 
-        {/* The claim above — that cards are read on the phone — is the kind of
-            thing every app says. The link is what makes it checkable, so it
-            sits directly under it rather than in a settings screen nobody
-            opens. It doubles as the way anyone curious finds the docs, or
-            deploys a copy for their own team. */}
+        {/* The bar at the top says the same thing louder, but it can be closed
+            for good. This one stays, so the app never ends up with no way back
+            to its own documentation — and it sits under the "read on your
+            phone" claim, which is the sentence a reader would want to check. */}
         <p className="oss-note">
-          Free and open source. How it works, and how to run your own copy:{' '}
+          Open source —{' '}
           <a
             href="https://github.com/jeratomise/handshake"
             target="_blank"
             rel="noreferrer noopener"
             data-testid="source-link"
           >
-            see the GitHub page
+            read the code, or run your own copy
           </a>
           .
         </p>
