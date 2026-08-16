@@ -287,9 +287,9 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 186 unit tests — parsing, phone normalisation, drafting
+npm test               # 191 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
-npm run e2e            # 37 browser tests against the real production build
+npm run e2e            # 39 browser tests against the real production build
 ```
 
 The end-to-end suite is not mocked. It renders a business card to a PNG, feeds it

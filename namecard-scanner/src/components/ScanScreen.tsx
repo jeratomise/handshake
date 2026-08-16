@@ -250,18 +250,19 @@ export default function ScanScreen({ onCapture, error }: Props) {
         {/* The claim above — that cards are read on the phone — is the kind of
             thing every app says. The link is what makes it checkable, so it
             sits directly under it rather than in a settings screen nobody
-            opens. */}
+            opens. It doubles as the way anyone curious finds the docs, or
+            deploys a copy for their own team. */}
         <p className="oss-note">
-          Free and open source.{' '}
+          Free and open source. How it works, and how to run your own copy:{' '}
           <a
             href="https://github.com/jeratomise/handshake"
             target="_blank"
             rel="noreferrer noopener"
             data-testid="source-link"
           >
-            Read the code on GitHub
-          </a>{' '}
-          and check that for yourself.
+            see the GitHub page
+          </a>
+          .
         </p>
       </div>
 
