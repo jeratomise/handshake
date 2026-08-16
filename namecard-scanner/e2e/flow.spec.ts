@@ -55,6 +55,21 @@ test('first run asks who the message is from before anything else', async ({ pag
   await expect(page.getByTestId('profile-save')).toBeEnabled();
 });
 
+test('the company arrives pre-filled, so a BDE only types their name', async ({ page }) => {
+  await reachApp(page);
+  await expect(page.getByTestId('profile-company')).toHaveValue('AMD Inc.');
+
+  // The default must not carry the profile past setup on its own — the name is
+  // still what makes it complete.
+  await expect(page.getByTestId('profile-save')).toBeDisabled();
+  await page.getByTestId('profile-name').fill('Jerome Ng');
+  await page.getByTestId('profile-save').click();
+  await expect(page.getByRole('heading', { name: /point at the card/i })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /point at the card/i })).toBeVisible();
+});
+
 test('reads a real card, then hands a reviewed message to WhatsApp', async ({ page }) => {
   await reachApp(page);
   await completeSetup(page);

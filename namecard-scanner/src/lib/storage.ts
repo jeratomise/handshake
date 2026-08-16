@@ -32,10 +32,21 @@ function writeJson(key: string, value: unknown): void {
   }
 }
 
+/**
+ * The company this deployment is for.
+ *
+ * Everyone using this build introduces themselves as AMD Inc., so pre-filling
+ * it removes a field from the only screen standing between a new BDE and their
+ * first scan. It is a default, not a constant: the setup sheet still edits it,
+ * and a saved profile always wins over this — including a deliberately blank
+ * one, since `readJson` merges the stored value over the fallback.
+ */
+const DEFAULT_COMPANY = 'AMD Inc.';
+
 export function defaultProfile(): SenderProfile {
   return {
     name: '',
-    company: '',
+    company: DEFAULT_COMPANY,
     role: '',
     defaultCountry: guessCountryIso(typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]),
     defaultTone: 'warm' as Tone,
