@@ -518,6 +518,13 @@ Getting it wrong is silent: a bare `9123 4567` read as American becomes
 +1 91234567, which is real, dialable and nobody's. It is editable in setup and
 per card on the confirm screen.
 
+**The sender's company is pre-filled with AMD Inc.** Everyone on this
+deployment introduces themselves the same way, so the field arrives filled and
+setup is down to one thing to type. It is a default, not a constant: the setup
+sheet still edits it, and a saved profile always wins — including one where the
+company was deliberately cleared. Change it in `DEFAULT_COMPANY`
+(`src/lib/storage.ts`) to rebrand a deployment.
+
 **A stated country code beats an assumed one, and identifiers are not phones.**
 Two failures from one real Malaysian card. Its mobile is printed
 `(6019) 7314 959` — country code inside the brackets, no `+` anywhere — and
