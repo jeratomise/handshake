@@ -1,5 +1,8 @@
 # Handshake — name card → WhatsApp
 
+> This is the engineering write-up: every decision, and the bug that caused it.
+> For the illustrated overview, start at the [repository README](../README.md).
+
 A mobile-first web app for sales BDEs. Scan a business card, answer one optional
 question about where you met, review the draft, and hand it to WhatsApp.
 
@@ -11,16 +14,16 @@ AI" button, off unless an operator turns it on. See [AI re-read](#ai-re-read).
 
 ## The flow
 
-```
-Capture  ──▶  Read  ──▶  Confirm  ──▶  Context  ──▶  Review  ──▶  WhatsApp
- camera        OCR       editable      "where did     draft you      wa.me
- or photo               fields         you meet?"     can edit       deep link
-                                        (skippable)
-```
+<img src="../docs/flow.svg" alt="Capture, read, confirm, context, review, WhatsApp" width="100%">
 
 The user always sees the message before anything is sent, and WhatsApp itself
 still requires the final send tap. There is no path in the app that transmits a
 message on the user's behalf.
+
+The diagrams in `docs/` are generated — `npm run diagrams` re-renders them from
+`marketing/build-diagrams.mjs`. They are hand-laid-out SVG rather than generated
+images because every label is a factual claim about this code, and an image model
+letters those plausibly rather than correctly.
 
 ## Running it
 
@@ -231,10 +234,13 @@ a country code the card only shows in brackets.
 
 ### Privacy
 
+<img src="../docs/local-first.svg" alt="What stays on the phone versus the two things that leave it" width="100%">
+
 The scan screen says cards are read on the phone by default and that nothing is
 uploaded unless the user asks for an AI re-read. That wording is load-bearing —
 if the AI path ever becomes automatic, it stops being true, and the same claim
-appears on the sales infographic.
+appears on the sales infographic, in the repository README, and now next to a
+link to this source from inside the app itself.
 
 ## Deploying (Vercel)
 
@@ -463,6 +469,8 @@ vertical-text layouts still unsolved; worth revisiting only if these cards turn
 out to be common in practice.
 
 ## How it is put together
+
+<img src="../docs/tesseract.svg" alt="The OCR pipeline and how country evidence is ranked" width="100%">
 
 | Path | Responsibility |
 | --- | --- |
