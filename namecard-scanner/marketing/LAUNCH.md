@@ -222,35 +222,13 @@ Underrated here and usually the biggest single source of the *right* traffic,
 because the audience is sales leadership rather than developers. Post from a
 personal profile; company pages get throttled.
 
-**Rules:** no external link in the post body — LinkedIn suppresses reach on
-those. Put the link in the first comment and say so.
+**The launch post, its first comment, the posting rules and a shorter variant
+are in [`linkedin-launch-post.md`](linkedin-launch-post.md)**, with
+`docs/linkedin-announcement.png` as the attachment (`npm run linkedin-card`).
 
-```
-Our BDEs come back from a conference with 40 business cards. They follow up on
-about 6.
-
-It was never a motivation problem. Typing a number off a card into WhatsApp and
-writing something that does not read like a template takes four minutes. Times
-40, after a three-day event, on top of a full pipeline.
-
-So we built the four minutes down to twenty seconds. Scan the card, answer one
-question about where you met, review the draft, send. The follow-up goes out the
-same evening instead of never.
-
-Two things I insisted on:
-
-The card is read on the phone itself, not uploaded anywhere. The person who
-handed over that card gave it to a human, not to a cloud service.
-
-Nothing sends automatically. The rep reads every message and taps send. Anything
-else is how a team ends up on WhatsApp's ban list.
-
-We open sourced the whole thing under MIT. If you run a sales team and someone
-technical can spend an afternoon, you can have your own branded copy running on
-your own infrastructure with no per-scan cost.
-
-Link in the comments.
-```
+The two rules that matter most: no outbound link in the post body — it goes in
+the first comment — and attach the image as 4:5 portrait, which LinkedIn renders
+uncropped and which fills a phone screen.
 
 ---
 
