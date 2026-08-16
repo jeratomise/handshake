@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 652" width="900" height="652" role="img" aria-label="Card to conversation, in six steps">
+<rect width="900" height="652" rx="22" fill="#0d0f12"/>
+<rect x="0.5" y="0.5" width="899" height="651" rx="21.5" fill="none" stroke="#2b3038"/>
+<text x="40" y="56" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="25" font-weight="700" fill="#f4f2ec" letter-spacing="0">Card to conversation, in six steps</text>
+<text x="40" y="82" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#6f757f" letter-spacing="0">One of them is optional. None of them send anything.</text>
+<line x1="68" y1="136" x2="68" y2="506" stroke="#2b3038" stroke-width="2"/>
+<circle cx="68" cy="136" r="17" fill="#0d0f12" stroke="#ccff3f" stroke-width="1.5"/>
+<text x="68" y="142" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#ccff3f" letter-spacing="0" text-anchor="middle">1</text>
+<text x="106" y="133" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">Capture</text>
+<text x="106" y="157" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">Live viewfinder, or a photo you already took. The shutter grabs a frame.</text>
+<text x="860" y="142" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">camera or photo</text>
+<circle cx="68" cy="210" r="17" fill="#0d0f12" stroke="#ccff3f" stroke-width="1.5"/>
+<text x="68" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#ccff3f" letter-spacing="0" text-anchor="middle">2</text>
+<text x="106" y="207" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">Read</text>
+<text x="106" y="231" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">Tesseract runs in the browser tab. A couple of seconds. Nothing is uploaded.</text>
+<text x="860" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">on device</text>
+<circle cx="68" cy="284" r="17" fill="#0d0f12" stroke="#ccff3f" stroke-width="1.5"/>
+<text x="68" y="290" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#ccff3f" letter-spacing="0" text-anchor="middle">3</text>
+<text x="106" y="281" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">Confirm</text>
+<text x="106" y="305" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">Name, title, company, phone, email — every field editable before you move on.</text>
+<text x="860" y="290" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">you can edit</text>
+<circle cx="68" cy="358" r="17" fill="#0d0f12" stroke="#ccff3f" stroke-width="1.5"/>
+<text x="68" y="364" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#ccff3f" letter-spacing="0" text-anchor="middle">4</text>
+<text x="106" y="355" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">Context</text>
+<text x="106" y="379" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">One question: where did you meet? Ten quick answers, or skip it entirely.</text>
+<text x="860" y="364" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">skippable</text>
+<circle cx="68" cy="432" r="17" fill="#0d0f12" stroke="#ccff3f" stroke-width="1.5"/>
+<text x="68" y="438" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#ccff3f" letter-spacing="0" text-anchor="middle">5</text>
+<text x="106" y="429" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">Review</text>
+<text x="106" y="453" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">The whole draft. Switch the tone, edit the words, or reset to the original.</text>
+<text x="860" y="438" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">you can edit</text>
+<circle cx="68" cy="506" r="17" fill="#0d0f12" stroke="#25d366" stroke-width="2"/>
+<text x="68" y="512" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700" fill="#25d366" letter-spacing="0" text-anchor="middle">6</text>
+<text x="106" y="503" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#f4f2ec" letter-spacing="0">WhatsApp</text>
+<text x="106" y="527" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#6f757f" letter-spacing="0">A wa.me deep link opens the chat with the message already typed out.</text>
+<text x="860" y="512" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0.3" text-anchor="end">one tap</text>
+<rect x="40" y="578" width="820" height="54" rx="12" fill="#111316" stroke="#22262c" stroke-width="1"/>
+<rect x="40" y="578" width="4" height="54" rx="2" fill="#25d366"/>
+<text x="62" y="601" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#25d366" letter-spacing="0.6">YOU SEND IT, NOT THE APP</text>
+<text x="62" y="621" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="400" fill="#a8adb6" letter-spacing="0">The draft is always shown first, and WhatsApp still asks for the final tap. Nothing goes out on your behalf.</text>
+</svg>

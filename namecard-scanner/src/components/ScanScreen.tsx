@@ -246,6 +246,23 @@ export default function ScanScreen({ onCapture, error }: Props) {
           data-testid="card-upload"
           aria-label="Upload a photo of a business card"
         />
+
+        {/* The claim above — that cards are read on the phone — is the kind of
+            thing every app says. The link is what makes it checkable, so it
+            sits directly under it rather than in a settings screen nobody
+            opens. */}
+        <p className="oss-note">
+          Free and open source.{' '}
+          <a
+            href="https://github.com/jeratomise/handshake"
+            target="_blank"
+            rel="noreferrer noopener"
+            data-testid="source-link"
+          >
+            Read the code on GitHub
+          </a>{' '}
+          and check that for yourself.
+        </p>
       </div>
 
       <div className="bar">

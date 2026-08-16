@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" width="1000" height="540" role="img" aria-label="Local first, and specific about it">
+<rect width="1000" height="540" rx="22" fill="#0d0f12"/>
+<rect x="0.5" y="0.5" width="999" height="539" rx="21.5" fill="none" stroke="#2b3038"/>
+<text x="40" y="56" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="25" font-weight="700" fill="#f4f2ec" letter-spacing="0">Local first, and specific about it</text>
+<text x="40" y="82" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#6f757f" letter-spacing="0">Business cards are other people’s contact details. They should not tour the internet.</text>
+<rect x="40" y="116" width="468" height="320" rx="14" fill="#141619" stroke="#2b3038" stroke-width="1"/>
+<rect x="58" y="115" width="432" height="3" rx="1.5" fill="#ccff3f"/>
+<text x="62" y="148" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#ccff3f" letter-spacing="0.4">STAYS ON THE PHONE</text>
+<text x="62" y="170" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#6f757f" letter-spacing="0">The default path, with no account and no network.</text>
+<line x1="62" y1="186" x2="486" y2="186" stroke="#22262c"/>
+<circle cx="52" cy="208" r="3" fill="#ccff3f"/>
+<text x="64" y="212" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">The card image</text>
+<text x="64" y="231" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">Never uploaded, never stored. It lives in a canvas and is gone when you leave.</text>
+<circle cx="52" cy="260" r="3" fill="#ccff3f"/>
+<text x="64" y="264" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">The OCR</text>
+<text x="64" y="283" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">Tesseract runs on your device. No OCR API, no key, no per-scan cost.</text>
+<circle cx="52" cy="312" r="3" fill="#ccff3f"/>
+<text x="64" y="316" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">The parsing and the draft</text>
+<text x="64" y="335" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">Names, numbers, tone, wording — all worked out in the tab.</text>
+<circle cx="52" cy="364" r="3" fill="#ccff3f"/>
+<text x="64" y="368" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">Your profile and history</text>
+<text x="64" y="387" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">localStorage first, so the app works with no account at all.</text>
+<rect x="532" y="116" width="428" height="320" rx="14" fill="#141619" stroke="#2b3038" stroke-width="1"/>
+<rect x="550" y="115" width="392" height="3" rx="1.5" fill="#ff7a45"/>
+<text x="554" y="148" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#ff7a45" letter-spacing="0.4">LEAVES THE PHONE</text>
+<text x="554" y="170" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#6f757f" letter-spacing="0">Only these two, and both are your call.</text>
+<line x1="554" y1="186" x2="938" y2="186" stroke="#22262c"/>
+<circle cx="544" cy="212" r="3" fill="#ff7a45"/>
+<text x="556" y="216" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">Your own rows, if you sign in</text>
+<text x="556" y="236" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">Profile and follow-up log sync to Supabase</text>
+<text x="556" y="253" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">so a new phone picks up where you left off.</text>
+<text x="556" y="270" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">Row level security means you can only ever</text>
+<text x="556" y="287" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">read your own.</text>
+<circle cx="544" cy="312" r="3" fill="#ff7a45"/>
+<text x="556" y="316" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#f4f2ec" letter-spacing="0">One card image, only if you ask</text>
+<text x="556" y="336" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">The optional "re-read with AI" button. Off</text>
+<text x="556" y="353" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">unless an operator turns it on, and then it</text>
+<text x="556" y="370" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">is one tap per card. It goes through a</text>
+<text x="556" y="387" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">server function — the provider key is never</text>
+<text x="556" y="404" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#6f757f" letter-spacing="0">in the browser.</text>
+<rect x="40" y="462" width="920" height="52" rx="12" fill="#111316" stroke="#22262c" stroke-width="1"/>
+<path d="M66 489 l7 7 l12 -14" fill="none" stroke="#ccff3f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="96" y="494" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#a8adb6" letter-spacing="0">No analytics or trackers</text>
+<path d="M378 489 l7 7 l12 -14" fill="none" stroke="#ccff3f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="408" y="494" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#a8adb6" letter-spacing="0">No third-party CDN or fonts</text>
+<path d="M690 489 l7 7 l12 -14" fill="none" stroke="#ccff3f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="720" y="494" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#a8adb6" letter-spacing="0">No API keys in the bundle</text>
+</svg>

@@ -439,6 +439,30 @@ h1 em {
   margin-bottom: 14px;
 }
 
+/* Source credit under the capture panel. Quiet by default — it is a proof
+   point for the privacy claim above it, not a call to action. */
+.oss-note {
+  margin: 18px 2px 0;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--paper-faint);
+}
+
+.oss-note a {
+  color: var(--paper-dim);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+  transition: color 0.18s var(--ease), text-decoration-color 0.18s var(--ease);
+}
+
+.oss-note a:hover,
+.oss-note a:focus-visible {
+  color: var(--signal);
+  text-decoration-color: var(--signal-dim);
+}
+
 /* ------------------------------------------------------------------ fields */
 .field {
   display: block;

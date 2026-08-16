@@ -55,6 +55,17 @@ test('first run asks who the message is from before anything else', async ({ pag
   await expect(page.getByTestId('profile-save')).toBeEnabled();
 });
 
+test('the capture screen credits the source and links to the repo', async ({ page }) => {
+  await reachApp(page);
+  await completeSetup(page);
+
+  const link = page.getByTestId('source-link');
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', 'https://github.com/jeratomise/handshake');
+  // Opening a new tab from the app must not hand the repo a handle back to it.
+  await expect(link).toHaveAttribute('rel', /noopener/);
+});
+
 test('the company arrives pre-filled, so a BDE only types their name', async ({ page }) => {
   await reachApp(page);
   await expect(page.getByTestId('profile-company')).toHaveValue('AMD Inc.');
