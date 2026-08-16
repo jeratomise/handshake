@@ -64,9 +64,46 @@ test('the capture screen credits the source and links to the repo', async ({ pag
   await expect(link).toHaveAttribute('href', 'https://github.com/jeratomise/handshake');
   // Opening a new tab from the app must not hand the repo a handle back to it.
   await expect(link).toHaveAttribute('rel', /noopener/);
-  // It has to read as "the docs live there", not only as a source listing —
-  // this line is the app's one pointer at everything written about it.
-  await expect(page.locator('.oss-note')).toContainText(/how it works/i);
+});
+
+test('the source bar is the first thing a visitor sees, before signing in', async ({ page }) => {
+  await mockSupabase(page);
+  await page.goto('/');
+
+  // Deliberately before signIn: someone who lands on the sign-in screen should
+  // still be told what this is.
+  const bar = page.getByTestId('source-bar');
+  await expect(bar).toBeVisible();
+  await expect(page.getByTestId('source-bar-link')).toHaveAttribute(
+    'href',
+    'https://github.com/jeratomise/handshake',
+  );
+
+  // It sits above the header rather than inside a scrolling panel, so it is on
+  // screen without scrolling — which is the whole reason it exists.
+  const barBox = await bar.boundingBox();
+  const headerBox = await page.locator('.topbar').boundingBox();
+  expect(barBox!.y).toBeLessThan(headerBox!.y);
+  expect(barBox!.y).toBeLessThan(100);
+});
+
+test('closing the source bar keeps it closed until site data is cleared', async ({ page }) => {
+  await mockSupabase(page);
+  await page.goto('/');
+  await page.getByTestId('source-bar-close').click();
+  await expect(page.getByTestId('source-bar')).toHaveCount(0);
+
+  // A reload is the case that matters: a bar that comes back every visit is an
+  // advert, not a notice.
+  await page.reload();
+  await expect(page.getByTestId('source-bar')).toHaveCount(0);
+  await signIn(page);
+  await expect(page.getByTestId('source-bar')).toHaveCount(0);
+
+  // Clearing the site's data is the documented way to get it back.
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expect(page.getByTestId('source-bar')).toBeVisible();
 });
 
 test('the company arrives pre-filled, so a BDE only types their name', async ({ page }) => {

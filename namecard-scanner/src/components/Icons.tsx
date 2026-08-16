@@ -69,6 +69,12 @@ export const GearIcon = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+export const CloseIcon = ({ size = 16 }: IconProps) => (
+  <svg {...base(size)} aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
 export const BackIcon = ({ size = 18 }: IconProps) => (
   <svg {...base(size)} aria-hidden="true">
     <path d="M15 5l-7 7 7 7" />
