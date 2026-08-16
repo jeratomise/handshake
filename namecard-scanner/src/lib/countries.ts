@@ -69,12 +69,65 @@ export function countryByIso(iso: string | undefined | null): Country {
 /** Longest-dial-code-first, so '65' never shadows '652'-style prefixes. */
 export const COUNTRIES_BY_DIAL_LENGTH = [...COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);
 
+/** Enough of the tz database to cover the markets in COUNTRIES. */
+const TIMEZONE_TO_ISO: Record<string, string> = {
+  'Asia/Singapore': 'SG',
+  'Asia/Kuala_Lumpur': 'MY', 'Asia/Kuching': 'MY',
+  'Asia/Jakarta': 'ID', 'Asia/Pontianak': 'ID', 'Asia/Makassar': 'ID', 'Asia/Jayapura': 'ID',
+  'Asia/Bangkok': 'TH',
+  'Asia/Ho_Chi_Minh': 'VN', 'Asia/Saigon': 'VN',
+  'Asia/Manila': 'PH',
+  'Asia/Hong_Kong': 'HK',
+  'Asia/Taipei': 'TW',
+  'Asia/Shanghai': 'CN', 'Asia/Chongqing': 'CN', 'Asia/Urumqi': 'CN',
+  'Asia/Tokyo': 'JP',
+  'Asia/Seoul': 'KR',
+  'Asia/Kolkata': 'IN', 'Asia/Calcutta': 'IN',
+  'Asia/Dubai': 'AE',
+  'Asia/Riyadh': 'SA',
+  'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+  'Australia/Perth': 'AU', 'Australia/Adelaide': 'AU', 'Australia/Darwin': 'AU', 'Australia/Hobart': 'AU',
+  'Pacific/Auckland': 'NZ',
+  'Europe/London': 'GB', 'Europe/Dublin': 'IE', 'Europe/Berlin': 'DE', 'Europe/Paris': 'FR',
+  'Europe/Amsterdam': 'NL', 'Europe/Madrid': 'ES', 'Europe/Rome': 'IT', 'Europe/Zurich': 'CH',
+  'Europe/Stockholm': 'SE', 'Europe/Warsaw': 'PL', 'Europe/Istanbul': 'TR',
+  'Africa/Johannesburg': 'ZA', 'Africa/Lagos': 'NG', 'Africa/Nairobi': 'KE', 'Africa/Cairo': 'EG',
+  'America/Sao_Paulo': 'BR', 'America/Bahia': 'BR', 'America/Fortaleza': 'BR', 'America/Manaus': 'BR',
+  'America/Mexico_City': 'MX', 'America/Monterrey': 'MX', 'America/Tijuana': 'MX',
+  'America/Argentina/Buenos_Aires': 'AR',
+  'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US',
+  'America/Los_Angeles': 'US', 'America/Phoenix': 'US', 'America/Anchorage': 'US', 'Pacific/Honolulu': 'US',
+  'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Edmonton': 'CA',
+  'America/Winnipeg': 'CA', 'America/Halifax': 'CA',
+};
+
+function deviceTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  } catch {
+    return '';
+  }
+}
+
 /**
- * Best-effort home market from the browser locale (e.g. 'en-SG' -> SG).
- * Falls back to Singapore rather than guessing wrong and silently mangling
- * every local number the user scans.
+ * Best-effort home market for the person holding the phone.
+ *
+ * This only ever decides a number that carries no country evidence of its own:
+ * a '+', a bracketed code, a trunk prefix or an email TLD all beat it. But when
+ * it is wrong it is wrong silently — a bare local number resolves to a real,
+ * dialable, completely incorrect country — so the strongest available signal
+ * wins, and Singapore is the last resort rather than the first guess.
  */
-export function guessCountryIso(locales: readonly string[] = []): string {
+export function guessCountryIso(locales: readonly string[] = [], timeZone?: string): string {
+  // Time zone first, because it says where the device *is*. A language tag says
+  // which language its owner prefers, and plenty of phones across Singapore and
+  // Malaysia report 'en-US' or a bare 'en' — which used to make the home market
+  // the United States and turn a local '9123 4567' into +1 91234567.
+  const zone = timeZone ?? deviceTimeZone();
+  const byZone = TIMEZONE_TO_ISO[zone];
+  if (byZone) return byZone;
+
+  // A locale that carries a region is still good evidence: 'en-SG' is explicit.
   for (const locale of locales) {
     const region = locale.split(/[-_]/)[1];
     if (region && BY_ISO.has(region.toUpperCase())) return region.toUpperCase();

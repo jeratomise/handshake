@@ -281,7 +281,7 @@ npm run preview        # serve the built app on :4173
 ## Verification
 
 ```bash
-npm test               # 181 unit tests — parsing, phone normalisation, drafting
+npm test               # 186 unit tests — parsing, phone normalisation, drafting
 npm run typecheck      # strict TypeScript, no implicit any, no unused symbols
 npm run e2e            # 37 browser tests against the real production build
 ```
@@ -507,6 +507,16 @@ not return the characters it failed on, it guesses and returns plausible ASCII.
 three numbers. `pickBestPhone` prefers an explicitly labelled mobile, then an
 unlabelled number whose prefix marks it as mobile, then the office line — and
 refuses a fax number outright.
+
+**Country evidence is ranked, and the home market is the last resort.** In
+order: a `+` or a bracketed code printed on the card; a trunk prefix or a length
+that only parses one way; the email's country TLD; and only then the user's home
+market. That last one is guessed from the device **time zone** first and the
+locale second — a language tag says which language its owner prefers, not where
+they are, and plenty of phones across Singapore and Malaysia report `en-US`.
+Getting it wrong is silent: a bare `9123 4567` read as American becomes
++1 91234567, which is real, dialable and nobody's. It is editable in setup and
+per card on the confirm screen.
 
 **A stated country code beats an assumed one, and identifiers are not phones.**
 Two failures from one real Malaysian card. Its mobile is printed
