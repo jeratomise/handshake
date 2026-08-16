@@ -64,6 +64,9 @@ test('the capture screen credits the source and links to the repo', async ({ pag
   await expect(link).toHaveAttribute('href', 'https://github.com/jeratomise/handshake');
   // Opening a new tab from the app must not hand the repo a handle back to it.
   await expect(link).toHaveAttribute('rel', /noopener/);
+  // It has to read as "the docs live there", not only as a source listing —
+  // this line is the app's one pointer at everything written about it.
+  await expect(page.locator('.oss-note')).toContainText(/how it works/i);
 });
 
 test('the company arrives pre-filled, so a BDE only types their name', async ({ page }) => {

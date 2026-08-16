@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "marketing": "node marketing/make-qr.mjs && node marketing/build-infographic.mjs",
-    "diagrams": "node marketing/build-diagrams.mjs"
+    "diagrams": "node marketing/build-diagrams.mjs",
+    "social-card": "node marketing/build-social-card.mjs"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.8",
